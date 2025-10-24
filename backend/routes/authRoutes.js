@@ -1,14 +1,13 @@
-// authRoutes.js
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); 
-const db = require('../db'); // Make sure db.js exports your MySQL connection
+const db = require('../db');
 const JWT_SECRET = 'your_jwt_secret_key';
 const { verifyToken } = require('../middleware/authMiddleware');
 
 
-// Registration route
+//------------------Registration Route----------------------//
 router.post('/register', async (req, res) => {
   const { name, email, password, role } = req.body;
 
@@ -18,16 +17,14 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    // Check if email already exists
+    // checking already existing email
     const [existing] = await db.promise().query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length > 0) {
       return res.status(400).json({ message: 'Email already registered' });
     }
 
-    // Hash the password
+    // Hashing
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insert the new user
     const sql = 'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)';
     await db.promise().query(sql, [name, email, hashedPassword, role]);
 
@@ -37,7 +34,7 @@ router.post('/register', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
-// -------------------- LOGIN ROUTE --------------------
+// -------------------- LOGIN ROUTE --------------------//
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
 
@@ -55,20 +52,20 @@ router.post('/login', async (req, res) => {
 
     const user = users[0];
 
-    // Compare password
+    //comparing password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    // 🌟 Generate JWT token
+    //JWT token generation
     const token = jwt.sign(
-      { id: user.id, role: user.role }, // payload — data inside token
-      JWT_SECRET,                       // secret key
-      { expiresIn: '1h' }               // token expires in 1 hour
+      { id: user.id, role: user.role },
+      JWT_SECRET,                     
+      { expiresIn: '1h' }              
     );
 
-    // 🌟 Send token + user data in response
+    // response
     res.json({
       message: 'Login successful',
       token,
@@ -89,8 +86,6 @@ router.post('/login', async (req, res) => {
 router.get('/me', verifyToken, (req, res) => {
     res.json({ user: req.user });
 });
-
-
 
 module.exports = router;
 
