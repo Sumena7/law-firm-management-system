@@ -1,13 +1,17 @@
 const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
+const clientRoutes=require('./routes/clientRoutes');
+const lawyerRoutes = require('./routes/lawyerRoutes');
+
+
 const db = require('./db');
 const express = require('express');
 const app = express();
 const port = 3000;
 
 app.use(express.json()); // allows server to parse JSON requests
-app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/lawyers', lawyerRoutes);
 
 
 app.get('/', (req, res) => {
