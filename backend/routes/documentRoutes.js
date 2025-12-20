@@ -1,8 +1,9 @@
+const compressFile = require('../utils/compressFile');
+const fs = require('fs');
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
@@ -51,7 +52,7 @@ router.post(
             next();
         });
     },
-    (req, res) => {
+    async (req, res) => {
         const { case_id } = req.body;
         const uploaded_by = req.user.id;
 
@@ -62,20 +63,34 @@ router.post(
         const file_path = req.file.path;
         const file_type = req.file.mimetype;
 
-        const query = `
-            INSERT INTO documents (case_id, uploaded_by, file_name, file_path, file_type)
-            VALUES (?, ?, ?, ?, ?)
-        `;
+        try {
+            // -------------------- Compress the uploaded file -------------------- //
+            const compressedPath = await compressFile(file_path);
 
-        db.query(query, [case_id, uploaded_by, file_name, file_path, file_type], (err, results) => {
-            if (err) {
-                console.error('Error saving document:', err);
-                return res.status(500).json({ success: false, message: 'Error saving document' });
-            }
-            res.json({ success: true, message: 'Document uploaded successfully', documentId: results.insertId });
-        });
+            // Optional: delete original uncompressed file
+            fs.unlinkSync(file_path);
+
+            // -------------------- Save compressed file info to DB -------------------- //
+            const query = `
+                INSERT INTO documents (case_id, uploaded_by, file_name, file_path, file_type)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+
+            db.query(query, [case_id, uploaded_by, file_name, compressedPath, file_type], (err, results) => {
+                if (err) {
+                    console.error('Error saving document:', err);
+                    return res.status(500).json({ success: false, message: 'Error saving document' });
+                }
+                res.json({ success: true, message: 'Document uploaded and compressed successfully', documentId: results.insertId });
+            });
+
+        } catch (error) {
+            console.error('Compression error:', error);
+            return res.status(500).json({ success: false, message: 'Error compressing document' });
+        }
     }
 );
+
 
 // -------------------- Get documents by case -------------------- //
 router.get(
@@ -140,61 +155,106 @@ router.delete(
     }
 );
 
-// -------------------- Download a document securely -------------------- //
+/// -------------------- Download a document securely -------------------- //
 // Roles: admin, staff, lawyer
+const unzipper = require('unzipper');
+const os = require('os');
+
 router.get(
     '/download/:id',
     verifyToken,
     allowRoles('admin', 'staff', 'lawyer'),
-    (req, res) => {
+    async (req, res) => {
         const { id } = req.params;
 
-        db.query('SELECT file_path, file_name FROM documents WHERE id = ?', [id], (err, results) => {
-            if (err || results.length === 0) {
+        try {
+            // 1️⃣ Get document info from DB
+            const [results] = await db.query('SELECT file_path, file_name FROM documents WHERE id = ?', [id]);
+            if (results.length === 0) {
                 return res.status(404).json({ success: false, message: 'File not found' });
             }
 
             const { file_path, file_name } = results[0];
 
-            res.download(file_path, file_name, (err) => {
-                if (err) {
-                    console.error('Error downloading file:', err);
-                    return res.status(500).json({ success: false, message: 'Error downloading file' });
-                }
+            // 2️⃣ Create a temporary folder for extraction
+            const tempDir = path.join(os.tmpdir(), `doc_${id}`);
+            if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+            // 3️⃣ Extract the file from zip
+            await fs.createReadStream(file_path)
+                .pipe(unzipper.Extract({ path: tempDir }))
+                .promise();
+
+            const extractedFilePath = path.join(tempDir, file_name);
+
+            // 4️⃣ Send the extracted file
+            res.download(extractedFilePath, file_name, (err) => {
+                // Clean up temporary folder after sending
+                fs.rmSync(tempDir, { recursive: true, force: true });
+                if (err) console.error('Error downloading file:', err);
             });
-        });
+
+        } catch (error) {
+            console.error('Download error:', error);
+            return res.status(500).json({ success: false, message: 'Error downloading file' });
+        }
     }
 );
+
 // -------------------- Preview a document securely -------------------- //
 // Roles: admin, staff, lawyer
+
 router.get(
     '/preview/:id',
     verifyToken,
     allowRoles('admin', 'staff', 'lawyer'),
-    (req, res) => {
+    async (req, res) => {
         const { id } = req.params;
 
-        db.query('SELECT file_path, file_type FROM documents WHERE id = ?', [id], (err, results) => {
-            if (err || results.length === 0) {
+        try {
+            // 1️⃣ Get document info from DB
+            const [results] = await db.query('SELECT file_path, file_name, file_type FROM documents WHERE id = ?', [id]);
+            if (results.length === 0) {
                 return res.status(404).json({ success: false, message: 'File not found' });
             }
 
-            const { file_path, file_type } = results[0];
+            const { file_path, file_name, file_type } = results[0];
 
-            // Only allow preview for PDFs and images
+            // 2️⃣ Only allow preview for PDFs and images
             if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file_type)) {
                 return res.status(400).json({ success: false, message: 'Preview not supported for this file type' });
             }
 
-            // Set appropriate headers for browser preview
+            // 3️⃣ Create temporary folder for extraction
+            const tempDir = path.join(os.tmpdir(), `preview_${id}`);
+            if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
+
+            // 4️⃣ Extract the file from zip
+            await fs.createReadStream(file_path)
+                .pipe(unzipper.Extract({ path: tempDir }))
+                .promise();
+
+            const extractedFilePath = path.join(tempDir, file_name);
+
+            // 5️⃣ Set headers and stream the file
             res.setHeader('Content-Type', file_type);
             res.setHeader('Content-Disposition', 'inline');
 
-            const fileStream = fs.createReadStream(file_path);
+            const fileStream = fs.createReadStream(extractedFilePath);
             fileStream.pipe(res);
-        });
+
+            // 6️⃣ Clean up temporary folder after streaming
+            fileStream.on('close', () => {
+                fs.rmSync(tempDir, { recursive: true, force: true });
+            });
+
+        } catch (error) {
+            console.error('Preview error:', error);
+            res.status(500).json({ success: false, message: 'Error previewing file' });
+        }
     }
 );
+
 
 
 module.exports = router;

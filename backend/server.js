@@ -15,6 +15,8 @@ const clientRoutes=require('./routes/clientRoutes');
 const lawyerRoutes = require('./routes/lawyerRoutes');
 const caseRoutes = require('./routes/caseRoutes'); 
 const documentRoutes = require('./routes/documentRoutes');
+const billingRoutes = require('./routes/billingRoutes');
+const appointmentRoutes = require('./routes/appointmentRoutes');
 
 
 
@@ -24,6 +26,9 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/lawyers', lawyerRoutes);
 app.use('/api/cases', caseRoutes);
 app.use('/api/documents', documentRoutes);
+app.use('/invoices', billingRoutes);
+app.use('/api/appointments', appointmentRoutes);
+
 
 
 app.get('/', (req, res) => {

@@ -1,6 +1,7 @@
+
+const { findSimilarCases } = require('../utils/caseSearch');
 const express = require('express');
 const router = express.Router();
-
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
@@ -22,14 +23,27 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
     });
 });
 
-/* Get single case by ID */
-router.get('/:id', verifyToken, (req, res) => {
+/* Get single case by ID with similar cases */
+router.get('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
-    db.query('SELECT * FROM cases WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error fetching case' });
+
+    try {
+        // 1️⃣ Fetch current case
+        const [results] = await db.query('SELECT * FROM cases WHERE id = ?', [id]);
         if (results.length === 0) return res.status(404).json({ success: false, message: 'Case not found' });
-        res.json({ success: true, data: results[0] });
-    });
+
+        const currentCase = results[0];
+
+        // 2️⃣ Fetch similar cases using your utility
+        const similarCases = await findSimilarCases(id, currentCase.title, currentCase.description);
+
+        // 3️⃣ Return current case + similar cases
+        res.json({ success: true, data: { currentCase, similarCases } });
+
+    } catch (error) {
+        console.error('Error fetching case:', error);
+        res.status(500).json({ success: false, message: 'Error fetching case' });
+    }
 });
 
 /* Create new case (STRICT VALIDATION) */
