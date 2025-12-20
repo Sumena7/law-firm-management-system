@@ -1,120 +1,84 @@
 const express = require('express');
 const router = express.Router();
+
 const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
 
-
-// Add a new case → admin or staff only
-router.post('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
-    const { title, description, status, client_id, assigned_lawyer_id } = req.body;
-
-    const query = `
-        INSERT INTO cases (title, description, status, client_id, assigned_lawyer_id)
-        VALUES (?, ?, ?, ?, ?)
-    `;
-
-    db.query(query, [title, description, status, client_id, assigned_lawyer_id], (err, results) => {
-        if (err) {
-            console.error('Error adding case:', err);
-            return res.status(500).json({ success: false, message: 'Error adding case' });
-        }
-
-        res.json({ success: true, message: 'Case added successfully', caseId: results.insertId });
-    });
-});
-
-module.exports = router;
-
-
-// Get all cases → admin or staff only
-router.get('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
-    const query = 'SELECT * FROM cases';
-    db.query(query, (err, results) => {
-        if (err) {
-            console.error('Error fetching cases:', err);
-            return res.status(500).json({ success: false, message: 'Error fetching cases' });
-        }
-
-        res.json({ success: true, data: results });
-    });
-});
-
-
+/* Get cases assigned to logged-in lawyer */
 router.get('/my', verifyToken, allowRoles('lawyer'), (req, res) => {
-    const lawyerId = req.user.id; // assume user.id matches lawyer ID
+    const lawyerId = req.user.id;
     db.query('SELECT * FROM cases WHERE assigned_lawyer_id = ?', [lawyerId], (err, results) => {
-        if (err) {
-            console.error('Error fetching assigned cases:', err);
-            return res.status(500).json({ success: false, message: 'Error fetching cases' });
-        }
-
+        if (err) return res.status(500).json({ success: false, message: 'Error fetching cases' });
         res.json({ success: true, data: results });
     });
 });
 
+/* Get all cases (Admin / Staff) */
+router.get('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
+    db.query('SELECT * FROM cases', (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error fetching cases' });
+        res.json({ success: true, data: results });
+    });
+});
 
-// Get case by ID → any authenticated user
+/* Get single case by ID */
 router.get('/:id', verifyToken, (req, res) => {
     const { id } = req.params;
-
-    const query = 'SELECT * FROM cases WHERE id = ?';
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.error('Error fetching case:', err);
-            return res.status(500).json({ success: false, message: 'Error fetching case' });
-        }
-
-        if (results.length === 0) {
-            return res.status(404).json({ success: false, message: 'Case not found' });
-        }
-
+    db.query('SELECT * FROM cases WHERE id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error fetching case' });
+        if (results.length === 0) return res.status(404).json({ success: false, message: 'Case not found' });
         res.json({ success: true, data: results[0] });
     });
 });
 
+/* Create new case (STRICT VALIDATION) */
+router.post('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
+    const { title, description, status, client_id, assigned_lawyer_id } = req.body;
+    if (!title || !description || !status || !client_id)
+        return res.status(400).json({ success: false, message: 'title, description, status, and client_id are required' });
 
-// Update case → admin or staff only
+    const query = 'INSERT INTO cases (title, description, status, client_id, assigned_lawyer_id) VALUES (?, ?, ?, ?, ?)';
+    const values = [title, description, status, client_id, assigned_lawyer_id || null];
+
+    db.query(query, values, (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error creating case' });
+        res.status(201).json({ success: true, message: 'Case created successfully', caseId: results.insertId });
+    });
+});
+
+/* Update case (NO STRICT VALIDATION – PARTIAL UPDATE) */
 router.put('/:id', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
     const { id } = req.params;
     const { title, description, status, client_id, assigned_lawyer_id } = req.body;
 
     const query = `
         UPDATE cases
-        SET title = ?, description = ?, status = ?, client_id = ?, assigned_lawyer_id = ?
+        SET
+            title = COALESCE(?, title),
+            description = COALESCE(?, description),
+            status = COALESCE(?, status),
+            client_id = COALESCE(?, client_id),
+            assigned_lawyer_id = COALESCE(?, assigned_lawyer_id)
         WHERE id = ?
     `;
+    const values = [title ?? null, description ?? null, status ?? null, client_id ?? null, assigned_lawyer_id ?? null, id];
 
-    db.query(query, [title, description, status, client_id, assigned_lawyer_id, id], (err, results) => {
-        if (err) {
-            console.error('Error updating case:', err);
-            return res.status(500).json({ success: false, message: 'Error updating case' });
-        }
-
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ success: false, message: 'Case not found' });
-        }
-
+    db.query(query, values, (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error updating case' });
+        if (results.affectedRows === 0) return res.status(404).json({ success: false, message: 'Case not found' });
         res.json({ success: true, message: 'Case updated successfully' });
     });
 });
 
-
-// Delete case → admin only
+/* Delete case (Admin only) */
 router.delete('/:id', verifyToken, allowRoles('admin'), (req, res) => {
     const { id } = req.params;
-
-    const query = 'DELETE FROM cases WHERE id = ?';
-    db.query(query, [id], (err, results) => {
-        if (err) {
-            console.error('Error deleting case:', err);
-            return res.status(500).json({ success: false, message: 'Error deleting case' });
-        }
-
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ success: false, message: 'Case not found' });
-        }
-
+    db.query('DELETE FROM cases WHERE id = ?', [id], (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error deleting case' });
+        if (results.affectedRows === 0) return res.status(404).json({ success: false, message: 'Case not found' });
         res.json({ success: true, message: 'Case deleted successfully' });
     });
 });
+
+module.exports = router;
