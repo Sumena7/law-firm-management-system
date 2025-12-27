@@ -5,177 +5,162 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
 const { sendEmail } = require('../utils/notification');
 
+// ---------------- Updated Helper to get emails ----------------
+async function getEmails(client_id, assigned_lawyer_id, reqUser, guest_email = null) {
+    let clientEmail = guest_email || null; // Prioritize guest email if provided
+    let lawyerEmail = null;
 
-/* -------------------- Create appointment -------------------- */
-// Roles: admin, staff
+    try {
+        // 1. Resolve Lawyer Email
+        if (assigned_lawyer_id) {
+            const [lawyerRows] = await db.query('SELECT email FROM lawyers WHERE id = ?', [assigned_lawyer_id]);
+            if (lawyerRows.length > 0) lawyerEmail = lawyerRows[0].email;
+        }
 
-router.post('/', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
-    const { case_id, client_id, assigned_lawyer_id, appointment_date, purpose, status } = req.body;
+        // 2. Resolve Client Email (If not already a guest)
+        if (!clientEmail && client_id) {
+            // Check the clients table first
+            const [clientRows] = await db.query('SELECT email FROM clients WHERE id = ?', [client_id]);
+            if (clientRows.length > 0) {
+                clientEmail = clientRows[0].email;
+            } else {
+                // FALLBACK: Check the users table (In case client_id is a User ID)
+                const [userRows] = await db.query('SELECT email FROM users WHERE id = ?', [client_id]);
+                if (userRows.length > 0) clientEmail = userRows[0].email;
+            }
+        }
 
-    if (!client_id || !assigned_lawyer_id || !appointment_date || !purpose) {
-        return res.status(400).json({ success: false, message: 'client_id, assigned_lawyer_id, appointment_date, and purpose are required' });
+        // 3. Fallback to the logged-in user if they are the one booking
+        if (!clientEmail && reqUser) {
+            clientEmail = reqUser.email;
+        }
+
+    } catch (err) {
+        console.error('Error resolving emails:', err);
+    }
+    return { clientEmail, lawyerEmail };
+}
+
+// ---------------- 1. Get Appointments for a Specific Lawyer ----------------
+router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const query = `
+            SELECT 
+                a.*, 
+                c.title AS case_title, 
+                cl.name AS client_name
+            FROM appointments a
+            LEFT JOIN cases c ON a.case_id = c.id
+            LEFT JOIN clients cl ON a.client_id = cl.id
+            WHERE a.assigned_lawyer_id = (
+                SELECT id FROM lawyers WHERE email = (SELECT email FROM users WHERE id = ?)
+            )
+            ORDER BY a.appointment_date ASC`;
+        
+        const [results] = await db.query(query, [userId]);
+        res.json({ success: true, data: results });
+    } catch (err) {
+        console.error('Error fetching lawyer appointments:', err);
+        res.status(500).json({ success: false, message: 'Error fetching appointments' });
+    }
+});
+
+// ---------------- 2. Create Appointment ----------------
+router.post('/', verifyToken, allowRoles('admin', 'staff', 'client'), async (req, res) => {
+    let { case_id, client_id, guest_email, assigned_lawyer_id, appointment_date, purpose, status } = req.body;
+
+    // If a client is logged in, use their ID
+    if (req.user.role === 'client') client_id = req.user.id;
+
+    if (!assigned_lawyer_id || !appointment_date || !purpose) {
+        return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
 
-    const appointmentStatus = status || 'Pending';
-    const query = `
-        INSERT INTO appointments (case_id, client_id, assigned_lawyer_id, appointment_date, purpose, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, NOW())
-    `;
-
-    db.query(query, [case_id || null, client_id, assigned_lawyer_id, appointment_date, purpose, appointmentStatus], (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error creating appointment' });
-
-        const appointmentId = results.insertId;
-
-        // Send notifications to client and lawyer
-        db.query(
-            'SELECT email FROM users WHERE id IN (?, ?)',
-            [client_id, assigned_lawyer_id],
-            (err, users) => {
-                if (!err) {
-                    users.forEach(u => {
-                        sendEmail(
-                            u.email,
-                            'New Appointment Scheduled',
-                            `An appointment (ID: ${appointmentId}) has been scheduled on ${appointment_date} for purpose: "${purpose}".`
-                        );
-                    });
-                }
-            }
+    try {
+        const [results] = await db.query(
+            `INSERT INTO appointments 
+            (case_id, client_id, guest_email, assigned_lawyer_id, appointment_date, purpose, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [case_id || null, client_id || null, guest_email || null, assigned_lawyer_id, appointment_date, purpose, status || 'Pending']
         );
 
-        res.status(201).json({ success: true, message: 'Appointment created', appointmentId });
-    });
-});
+        const appointmentId = results.insertId;
+        
+        // Fetch emails using the updated robust helper
+        const { clientEmail, lawyerEmail } = await getEmails(client_id, assigned_lawyer_id, req.user, guest_email);
 
+        console.log(`Attempting to notify: Client(${clientEmail}), Lawyer(${lawyerEmail})`);
 
-/* -------------------- List appointments -------------------- */
-// Admin/staff = all, Lawyer = own, Client = own
-router.get('/', verifyToken, (req, res) => {
-    let query = 'SELECT * FROM appointments';
-    let params = [];
-
-    if (req.user.role === 'lawyer') {
-        query += ' WHERE assigned_lawyer_id = ?';
-        params.push(req.user.id);
-    } else if (req.user.role === 'client') {
-        query += ' WHERE client_id = ?';
-        params.push(req.user.id);
-    }
-
-    db.query(query, params, (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error fetching appointments' });
-        res.json({ success: true, data: results });
-    });
-});
-
-/* -------------------- Get single appointment -------------------- */
-router.get('/:id', verifyToken, (req, res) => {
-    const { id } = req.params;
-
-    db.query('SELECT * FROM appointments WHERE id = ?', [id], (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error fetching appointment' });
-        if (results.length === 0) return res.status(404).json({ success: false, message: 'Appointment not found' });
-
-        const appointment = results[0];
-
-        // Role-based access
-        if (req.user.role === 'client' && appointment.client_id !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-        if (req.user.role === 'lawyer' && appointment.assigned_lawyer_id !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        res.json({ success: true, data: appointment });
-    });
-});
-
-/* -------------------- Update/reschedule appointment -------------------- */
-// Roles: admin, staff
-
-router.put('/:id', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
-    const { id } = req.params;
-    const { case_id, client_id, assigned_lawyer_id, appointment_date, purpose, status } = req.body;
-
-    const query = `
-        UPDATE appointments
-        SET
-            case_id = COALESCE(?, case_id),
-            client_id = COALESCE(?, client_id),
-            assigned_lawyer_id = COALESCE(?, assigned_lawyer_id),
-            appointment_date = COALESCE(?, appointment_date),
-            purpose = COALESCE(?, purpose),
-            status = COALESCE(?, status)
-        WHERE id = ?
-    `;
-    const values = [case_id ?? null, client_id ?? null, assigned_lawyer_id ?? null, appointment_date ?? null, purpose ?? null, status ?? null, id];
-
-    db.query(query, values, (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error updating appointment' });
-        if (results.affectedRows === 0) return res.status(404).json({ success: false, message: 'Appointment not found' });
-
-        // Fetch client and lawyer emails
-        db.query('SELECT client_id, assigned_lawyer_id FROM appointments WHERE id = ?', [id], (err, appointmentResults) => {
-            if (!err && appointmentResults.length > 0) {
-                const { client_id, assigned_lawyer_id } = appointmentResults[0];
-
-                db.query(
-                    'SELECT email FROM users WHERE id IN (?, ?)',
-                    [client_id, assigned_lawyer_id],
-                    (err, users) => {
-                        if (!err) {
-                            users.forEach(u => {
-                                sendEmail(
-                                    u.email,
-                                    'Appointment Updated / Rescheduled',
-                                    `Appointment ID ${id} has been updated. New date: ${appointment_date || 'unchanged'}, Purpose: ${purpose || 'unchanged'}.`
-                                );
-                            });
-                        }
-                    }
-                );
-            }
-        });
-
-        res.json({ success: true, message: 'Appointment updated successfully' });
-    });
-});
-
-
-//* -------------------- Cancel/delete appointment -------------------- */
-// Roles: admin, staff
-router.delete('/:id', verifyToken, allowRoles('admin', 'staff'), (req, res) => {
-    const { id } = req.params;
-
-    // Fetch client and lawyer before deleting
-    db.query('SELECT client_id, assigned_lawyer_id, appointment_date, purpose FROM appointments WHERE id = ?', [id], (err, appointmentResults) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error fetching appointment' });
-        if (appointmentResults.length === 0) return res.status(404).json({ success: false, message: 'Appointment not found' });
-
-        const { client_id, assigned_lawyer_id, appointment_date, purpose } = appointmentResults[0];
-
-        // Delete the appointment
-        db.query('DELETE FROM appointments WHERE id = ?', [id], (err, results) => {
-            if (err) return res.status(500).json({ success: false, message: 'Error deleting appointment' });
-
-            // Send notifications to client and lawyer
-            db.query('SELECT email FROM users WHERE id IN (?, ?)', [client_id, assigned_lawyer_id], (err, users) => {
-                if (!err) {
-                    users.forEach(u => {
-                        sendEmail(
-                            u.email,
-                            'Appointment Canceled',
-                            `Appointment (ID: ${id}) scheduled on ${appointment_date} for purpose "${purpose}" has been canceled.`
-                        );
-                    });
-                }
+        if (clientEmail) {
+            await sendEmail({
+                to: clientEmail,
+                subject: 'Appointment Confirmation - JusticePanel',
+                text: `Hello, your appointment regarding "${purpose}" is scheduled for ${appointment_date}. Appointment ID: ${appointmentId}.`
             });
+        }
+        
+        if (lawyerEmail) {
+            await sendEmail({
+                to: lawyerEmail,
+                subject: 'New Appointment Assigned',
+                text: `You have a new appointment on ${appointment_date}. \nPurpose: ${purpose} \nClient Contact: ${clientEmail || 'Guest'}`
+            });
+        }
 
-            res.json({ success: true, message: 'Appointment canceled successfully' });
-        });
-    });
+        res.status(201).json({ success: true, appointmentId });
+    } catch (err) {
+        console.error('Create error:', err);
+        res.status(500).json({ success: false, message: 'Database error' });
+    }
 });
 
+// ---------------- 3. List Appointments (General Admin/Staff) ----------------
+router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
+    try {
+        const [results] = await db.query('SELECT * FROM appointments ORDER BY appointment_date DESC');
+        res.json({ success: true, data: results });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Fetch error' });
+    }
+});
+
+// ---------------- 4. Get Single Appointment ----------------
+router.get('/:id', verifyToken, allowRoles('admin', 'lawyer', 'client'), async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [results] = await db.query('SELECT * FROM appointments WHERE id = ?', [id]);
+        if (results.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
+        res.json({ success: true, data: results[0] });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// ---------------- 5. Delete / Cancel Appointment ----------------
+router.delete('/:id', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
+    const { id } = req.params;
+    try {
+        const [apptRows] = await db.query('SELECT * FROM appointments WHERE id = ?', [id]);
+        if (apptRows.length === 0) return res.status(404).json({ success: false, message: 'Not found' });
+        
+        const appointment = apptRows[0];
+        const { clientEmail, lawyerEmail } = await getEmails(appointment.client_id, appointment.assigned_lawyer_id, req.user, appointment.guest_email);
+
+        await db.query('DELETE FROM appointments WHERE id = ?', [id]);
+
+        const cancelContent = {
+            subject: 'Appointment Cancellation Notice',
+            text: `The appointment scheduled for ${appointment.appointment_date} has been canceled.`
+        };
+
+        if (clientEmail) await sendEmail({ to: clientEmail, ...cancelContent });
+        if (lawyerEmail) await sendEmail({ to: lawyerEmail, ...cancelContent });
+
+        res.json({ success: true, message: 'Canceled and participants notified.' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Delete error' });
+    }
+});
 
 module.exports = router;

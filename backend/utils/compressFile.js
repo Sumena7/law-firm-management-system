@@ -1,20 +1,45 @@
 const fs = require('fs');
 const path = require('path');
-const archiver = require('archiver');
+const sharp = require('sharp');
+const { exec } = require('child_process');
 
-const compressFile = (filePath) => {
-  return new Promise((resolve, reject) => {
-    const zipPath = filePath + '.zip';
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver('zip', { zlib: { level: 9 } });
+const compressFile = async (filePath) => {
+  const ext = path.extname(filePath).toLowerCase();
 
-    output.on('close', () => resolve(zipPath));
-    archive.on('error', err => reject(err));
+  // ===============================
+  // IMAGE COMPRESSION
+  // ===============================
+  if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+    const outputPath = filePath.replace(ext, `_compressed${ext}`);
 
-    archive.pipe(output);
-    archive.file(filePath, { name: path.basename(filePath) });
-    archive.finalize();
-  });
+    await sharp(filePath)
+      .jpeg({ quality: 75 })
+      .png({ compressionLevel: 9 })
+      .toFile(outputPath);
+
+    return outputPath;
+  }
+
+  // ===============================
+  // PDF COMPRESSION (Ghostscript)
+  // ===============================
+  if (ext === '.pdf') {
+    const outputPath = filePath.replace('.pdf', '_compressed.pdf');
+
+    await new Promise((resolve, reject) => {
+      exec(
+        `gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/ebook -dNOPAUSE -dBATCH -sOutputFile="${outputPath}" "${filePath}"`,
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+
+    return outputPath;
+  }
+
+  // ===============================
+  // DOC / DOCX (no compression)
+  // ===============================
+  return filePath;
 };
 
 module.exports = compressFile;

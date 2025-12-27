@@ -1,13 +1,12 @@
 const nodemailer = require('nodemailer');
+const path = require('path');
 
 // Configure your email transporter
 const transporter = nodemailer.createTransport({
-    host: 'smtp.example.com', // Replace with your SMTP host
-    port: 587,                // Replace with your SMTP port
-    secure: false,            // true for 465, false for other ports
+    service: 'gmail',  // Use Gmail
     auth: {
-        user: 'your-email@example.com', // Replace with your email
-        pass: 'your-email-password'     // Replace with your email password or app password
+        user: process.env.EMAIL_USER, 
+        pass: process.env.EMAIL_PASS        
     }
 });
 
@@ -16,15 +15,27 @@ const transporter = nodemailer.createTransport({
  * @param {string} to - recipient email
  * @param {string} subject - email subject
  * @param {string} text - email body
+ * @param {string} [attachmentPath] - optional path to a file to attach
  */
-async function sendEmail(to, subject, text) {
+async function sendEmail({to, subject, text, attachmentPath = null}) {
     try {
-        await transporter.sendMail({
-            from: '"Law Firm" <your-email@example.com>',
+        const mailOptions = {
+            from: `"Everest Law Chamber" <${process.env.EMAIL_USER}>`,
             to,
             subject,
             text
-        });
+        };
+
+        if (attachmentPath) {
+            mailOptions.attachments = [
+                {
+                    filename: path.basename(attachmentPath),
+                    path: attachmentPath
+                }
+            ];
+        }
+
+        await transporter.sendMail(mailOptions);
         console.log(`Email sent to ${to}`);
     } catch (error) {
         console.error('Email error:', error);
