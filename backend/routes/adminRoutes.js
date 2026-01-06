@@ -3,55 +3,55 @@ const router = express.Router();
 const db = require('../db');
 const bcrypt = require('bcryptjs');
 const { verifyToken } = require('../middleware/authMiddleware');
-const { sendEmail } = require('../utils/notification'); // Ensure this path to your notification.js is correct
-
-// Middleware to ensure only Admins can access these routes
-const isAdmin = (req, res, next) => {
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        return res.status(403).json({ message: "Access denied. Admins only." });
-    }
-};
+const { allowRoles } = require('../middleware/roleMiddleware');
+const { sendEmail } = require('../utils/notification');
 
 /**
  * @route   POST /api/admin/authorize-lawyer
  * @desc    Adds a lawyer's email to the authorized list so they can register
  * @access  Private (Admin)
  */
-router.post('/authorize-lawyer', verifyToken, isAdmin, async (req, res) => {
+router.post('/authorize-lawyer', verifyToken, allowRoles('admin'), async (req, res) => {
     const { name, email, specialization } = req.body;
     try {
+        // Pre-create the lawyer profile. Status is 'Pending' until they register their user account.
         await db.query(
-            'INSERT INTO lawyers (name, email, specialization) VALUES (?, ?, ?)',
-            [name, email, specialization]
+            'INSERT INTO lawyers (name, email, specialization, status) VALUES (?, ?, ?, ?)',
+            [name, email, specialization, 'Pending']
         );
-        res.status(201).json({ message: "Lawyer email authorized successfully!" });
+        res.status(201).json({ success: true, message: "Lawyer email authorized successfully!" });
     } catch (err) {
         console.error("Authorization Error:", err);
-        res.status(500).json({ message: "Error: Email might already be authorized." });
+        res.status(500).json({ success: false, message: "Error: Email might already be authorized." });
     }
 });
 
 /**
  * @route   POST /api/admin/create-staff
- * @desc    Directly creates a Staff user and sends them an automated welcome email
+ * @desc    Directly creates a Staff user in 'users' and 'staffs' tables and sends welcome email
  * @access  Private (Admin)
  */
-router.post('/create-staff', verifyToken, isAdmin, async (req, res) => {
+router.post('/create-staff', verifyToken, allowRoles('admin'), async (req, res) => {
     const { name, email, password } = req.body;
     
     try {
-        // 1. Hash the temporary password for database security
+        // 1. Hash the temporary password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 2. Insert the user directly into the users table with the 'staff' role
+        // 2. Insert into the 'users' table (For Authentication)
         await db.query(
             'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [name, email, hashedPassword, 'staff']
         );
 
-        // 3. Prepare the welcome email content
+        // 3. Insert into the 'staffs' table (For Profile & Status)
+        // This fixes the "profile no longer active" error
+        await db.query(
+            'INSERT INTO staffs (name, email, created_at) VALUES (?, ?, NOW())',
+            [name, email]
+        );
+
+        // 4. Prepare the welcome email content
         const emailContent = `
 Hello ${name},
 
@@ -68,7 +68,7 @@ Best regards,
 JusticePanel Administration
         `;
 
-        // 4. Send the email using your notification.js utility
+        // 5. Send the email
         await sendEmail({
             to: email,
             subject: 'Welcome to the Team - Your Staff Account Credentials',
@@ -76,15 +76,16 @@ JusticePanel Administration
         });
 
         res.status(201).json({ 
+            success: true,
             message: `Staff account for ${name} created successfully and credentials emailed!` 
         });
 
     } catch (err) {
         console.error("Staff Creation Error:", err);
         if (err.code === 'ER_DUP_ENTRY') {
-            return res.status(400).json({ message: "Error: A user with this email already exists." });
+            return res.status(400).json({ success: false, message: "Error: A user with this email already exists." });
         }
-        res.status(500).json({ message: "Server error during staff creation." });
+        res.status(500).json({ success: false, message: "Server error during staff creation." });
     }
 });
 

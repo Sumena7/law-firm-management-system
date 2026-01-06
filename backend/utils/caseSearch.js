@@ -1,83 +1,89 @@
-// utils/caseSearch.js
 const db = require('../db');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-// Initialize Gemini once
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+/**
+ * ✅ FORCING JSON OUTPUT (Structured Outputs)
+ * This eliminates the need for indexOf('[') or regex.
+ */
+const model = genAI.getGenerativeModel({ 
+model: "gemini-2.5-flash-lite", // or gemini-2.5-flash-lite if available
+  generationConfig: { 
+    responseMimeType: "application/json" 
+  } 
+});
 
 async function findSimilarCases(caseId, title, description, limit = 5) {
   try {
-    // 1️⃣ Fetch all other cases from DB
-    const [allCases] = await db.query('SELECT * FROM cases WHERE id != ?', [caseId]);
-    if (allCases.length === 0) return [];
+    const [allCases] = await db.query(
+      'SELECT id, title, description FROM cases WHERE id != ?',
+      [caseId]
+    );
 
-    // 2️⃣ Prepare AI prompt
+    if (!allCases.length) return [];
+
     const prompt = `
-      You are a legal expert. Compare the following case with other cases for similarity.
+      You are a strict legal research expert. Analyze the similarity between the "Target Case" and the "Candidate List".
       
-      Current Case:
+      SCORING RULES:
+      - 0.9 - 1.0: Extremely similar facts and legal issues.
+      - 0.7 - 0.8: Similar legal category with comparable facts.
+      - 0.4 - 0.6: Same legal category but DIFFERENT facts (Treat these as low relevance).
+      - Below 0.4: Unrelated.
+
+      Target Case:
       Title: ${title}
-      Description: ${description}
+      Facts: ${description}
 
-      Other Cases:
-      ${JSON.stringify(allCases.map(c => ({ id: c.id, title: c.title, description: c.description })))}
+      Candidate List:
+      ${JSON.stringify(allCases)}
 
-      Return the top ${limit} most similar cases as a JSON array in this format:
-      [
-        { "id": case_id, "similarity": similarity_score },
-        ...
-      ]
-      Only JSON, no extra text.
+      Return ONLY a JSON array of objects: [{"id": number, "similarity": number}]
     `;
 
-    // 3️⃣ Ask Gemini
-    const aiResponse = await model.generateContent(prompt);
-    const rawText = aiResponse.response.text();
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    
+    // ✅ With responseMimeType, response.text() is guaranteed clean JSON
+    let aiResults = JSON.parse(response.text());
 
-    // 4️⃣ Robust JSON extraction using regex
-    let similarCasesAI = [];
-    try {
-      // Match the first JSON array in the text
-      const jsonMatch = rawText.match(/\[.*\]/s);
-      if (jsonMatch) {
-        similarCasesAI = JSON.parse(jsonMatch[0]);
-      } else {
-        console.error("AI did not return a JSON array:", rawText);
-        return [];
-      }
-    } catch (err) {
-      console.error("AI JSON parsing failed:", rawText, err);
-      return [];
-    }
+    if (!Array.isArray(aiResults)) return [];
 
-    if (!Array.isArray(similarCasesAI) || similarCasesAI.length === 0) return [];
+    // ✅ Match IDs and ensure they are numbers
+    const aiMatches = aiResults.map(r => ({
+      id: Number(r.id),
+      similarity: Number(r.similarity) || 0
+    }));
 
-    // 5️⃣ Fetch full details of top similar cases from DB
-    const ids = similarCasesAI.map(c => c.id);
-    const [similarCases] = await db.query(
+    const ids = aiMatches.map(r => r.id);
+    if (!ids.length) return [];
+
+    // Fetch full data for the matched IDs
+    const [cases] = await db.query(
       `SELECT * FROM cases WHERE id IN (${ids.map(() => '?').join(',')})`,
       ids
     );
 
-    // 6️⃣ Merge similarity score
-    const merged = similarCases.map(c => {
-      const match = similarCasesAI.find(a => a.id == c.id);
-      return { ...c, similarity: match?.similarity || 0 };
+    /**
+     * ✅ RAISED THRESHOLD
+     * Setting this to 0.7 ensures that your "60%" matches are filtered out
+     * and only high-relevance cases remain.
+     */
+    const MIN_SIMILARITY = 0.7;
+
+    const merged = cases.map(c => {
+      const match = aiMatches.find(r => r.id === c.id);
+      return { ...c, similarity: match ? match.similarity : 0 };
     });
 
-    // 7️⃣ Sort by similarity descending
-merged.sort((a, b) => b.similarity - a.similarity);
-
-// 8️⃣ Filter by minimum similarity (e.g., 0.5)
-const MIN_SIMILARITY = 0.5;
-const filtered = merged.filter(c => c.similarity >= MIN_SIMILARITY);
-
-return filtered.slice(0, limit);
-
+    return merged
+      .filter(c => c.similarity >= MIN_SIMILARITY)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, limit);
 
   } catch (err) {
-    console.error("Error in findSimilarCases:", err);
+    console.error("AI Similarity Error:", err.message);
     return [];
   }
 }

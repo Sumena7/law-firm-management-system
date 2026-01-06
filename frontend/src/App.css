@@ -11,7 +11,7 @@
   --text-main: #0f172a;     
   --text-muted: #475569;    
   --text-on-dark: #f8fafc;  
-  --border: #94a3b8; 
+  --border: #e2e8f0; 
   --sidebar-active: rgba(255, 255, 255, 0.1);
 }
 
@@ -23,10 +23,14 @@ body {
   background-color: var(--bg-main);
   color: var(--text-main);
   line-height: 1.5;
+  overflow-x: hidden;
 }
 
 /* --- 3. LAYOUT STRUCTURE --- */
-.dashboard-wrapper { display: flex; min-height: 100vh; }
+.dashboard-wrapper { 
+  display: flex; 
+  min-height: 100vh; 
+}
 
 .sidebar {
   width: 260px;
@@ -38,66 +42,148 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 100;
+  /* FIX: Allow sidebar to scroll if items overflow */
+  overflow-y: auto; 
+}
+
+/* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--sidebar-active);
+  border-radius: 10px;
 }
 
 .main-content {
   flex: 1;
   margin-left: 260px; 
-  padding: 40px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   min-width: 0; 
 }
 
-.container { max-width: 1100px; margin: 0 auto; }
+.container { 
+  max-width: 1200px; 
+  margin: 0 auto; 
+  width: 100%;
+}
 
 /* --- 4. NAVIGATION & ACTIVE STATE --- */
-.sidebar-nav ul { list-style: none; padding: 0; }
-.sidebar-nav li { margin-bottom: 8px; border-radius: 8px; overflow: hidden; }
+.sidebar-nav {
+  flex: 1; /* Pushes the logout container to the bottom */
+}
+.sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
+.sidebar-nav li { margin-bottom: 4px; border-radius: 8px; overflow: hidden; }
+
 .sidebar-nav a {
   color: #cbd5e1;
   text-decoration: none;
-  display: block;
+  display: flex;
+  align-items: center;
   padding: 12px 16px;
   transition: 0.2s;
   font-weight: 500;
+  gap: 12px;
 }
 
-.active-link { background-color: var(--primary) !important; }
-.active-link a { color: white !important; }
+.sidebar-nav li:hover { background-color: var(--sidebar-active); }
+
+/* Support for NavLink active class */
+.sidebar-nav a.active { 
+  background-color: var(--primary) !important; 
+  color: white !important; 
+  border-radius: 8px;
+}
+
+.logout-container {
+  padding-top: 20px;
+  margin-top: auto; /* Ensures logout stays at the very bottom */
+  border-top: 1px solid var(--sidebar-active);
+}
 
 /* --- 5. STATS CARDS --- */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* FIX: Forces a 3-column grid on desktop to prevent long vertical stacks */
+  grid-template-columns: repeat(3, 1fr); 
   gap: 20px;
   margin-bottom: 32px;
+  width: 100%;
 }
+
 .stat-card {
   background-color: var(--bg-card);
-  padding: 20px;
+  padding: 24px;
   border-radius: 12px;
   border: 1px solid var(--border);
   border-left: 6px solid var(--primary);
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-.stat-card:hover { transform: translateY(-3px); }
-.stat-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
-.stat-number { font-size: 1.75rem; font-weight: 800; margin-top: 4px; }
+
+.stat-card:hover { 
+  transform: translateY(-4px); 
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+/* Border colors for specific cards */
+.stat-card.cases { border-left-color: var(--primary); }
+.stat-card.clients { border-left-color: var(--success); }
+.stat-card.lawyers { border-left-color: #a855f7; }
+.stat-card.appointments { border-left-color: #f59e0b; }
+
+.stat-label { 
+  font-size: 0.75rem; 
+  color: var(--text-muted); 
+  text-transform: uppercase; 
+  font-weight: 700; 
+  letter-spacing: 0.05em;
+}
+.stat-number { 
+  font-size: 2rem; 
+  font-weight: 800; 
+  margin-top: 8px; 
+  color: var(--text-main);
+}
 
 /* --- 6. FORMS & INPUTS --- */
+label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+  color: var(--text-main);
+}
+
 input, select, textarea {
   width: 100%;
   padding: 12px;
-  border: 2px solid #94a3b8;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background-color: #ffffff;
-  color: #000000 !important; /* Force black text */
+  color: var(--text-main) !important; 
   font-size: 1rem;
-  margin-top: 5px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
 }
 
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+/* Update your CSS to this */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  /* This replaces 'ring' and creates a soft blue glow */
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); 
+  transition: all 0.2s ease-in-out;
+}
+.form-grid { 
+  display: grid; 
+  grid-template-columns: 1fr 1fr; 
+  gap: 20px; 
+}
 
 /* --- 7. BUTTONS --- */
 .btn {
@@ -109,47 +195,157 @@ input, select, textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.2s;
+  gap: 8px;
 }
+
+.btn:active { transform: scale(0.98); }
 .btn.primary { background-color: var(--primary); color: white; }
+.btn.primary:hover { background-color: var(--primary-hover); }
 .btn.danger { background-color: var(--danger); color: white; }
+.btn.small { padding: 8px 16px; font-size: 0.85rem; }
 
-/* --- 8. THE RESPONSIVE FIX --- */
-@media (max-width: 1024px) {
-  .sidebar { display: none !important; }
-  .main-content { margin-left: 0 !important; padding: 20px !important; width: 100% !important; }
-  .stats-grid { grid-template-columns: 1fr 1fr !important; }
-  .form-grid { grid-template-columns: 1fr !important; }
-}
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2000;
-}
-
-.modal-content.pdf-modal {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
-  width: 90%;
-  max-width: 1000px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-}
-
-.modal-header {
+/* --- 8. TOP HEADER STYLING --- */
+.top-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  margin-bottom: 15px;
+  padding: 0 40px;
+  height: 70px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 90;
 }
 
-.modal-body iframe {
-  border: 1px solid #ccc;
-  border-radius: 4px;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-pill {
+  background: #f1f5f9;
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--primary);
+  border: 1px solid var(--border);
+}
+
+.content-padding {
+  padding: 32px 40px;
+}
+
+/* --- 9. NOTIFICATIONS --- */
+.appt-notif-wrapper {
+  background: #fff1f2;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 1px solid #fecdd3;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.notif-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e11d48;
+  margin-left: 8px;
+}
+
+.bell-container { position: relative; }
+.notif-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #ef4444; 
+  color: white;
+  font-size: 0.65rem;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff1f2;
+  animation: pulse-red 2s infinite;
+}
+
+@keyframes pulse-red {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+/* --- 10. TABLES --- */
+.table-container {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  background: #f8fafc;
+  padding: 14px 20px;
+  text-align: left;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+/* --- 11. RESPONSIVE FIX --- */
+@media (max-width: 1200px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); transition: 0.3s; }
+  .main-content { margin-left: 0; }
+  .top-header { padding: 0 20px; }
+  .content-padding { padding: 20px; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+/* This targets the specific class for excluded dates */
+.react-datepicker__day--disabled {
+    background-color: #fee2e2 !important; /* Light red background */
+    color: #ef4444 !important;            /* Red text */
+    text-decoration: line-through !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+}
+
+/* Optional: Make the red legend look nice */
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    margin-top: 10px;
+}
+.red-square {
+    width: 12px;
+    height: 12px;
+    background: #fee2e2;
+    border: 1px solid #ef4444;
 }

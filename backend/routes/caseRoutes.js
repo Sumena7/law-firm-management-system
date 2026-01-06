@@ -7,7 +7,7 @@ const { findSimilarCases } = require('../utils/caseSearch'); // AI Similarity To
 
 // ------------------------------------------------------------------
 // 1. GET CASES BY LAWYER (USER ID)
-// Used by the LawyerDashboard to populate the main table
+// Updated to include 'category' in the selection
 // ------------------------------------------------------------------
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
     const { userId } = req.params;
@@ -17,6 +17,7 @@ router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async 
                 c.id AS case_id, 
                 c.title AS case_title, 
                 c.status, 
+                c.category,  -- Added Category
                 c.description,
                 cl.name AS client_name,
                 (SELECT appointment_date FROM appointments 
@@ -36,8 +37,7 @@ router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async 
 });
 
 // ------------------------------------------------------------------
-// 2. GET SINGLE CASE BY ID (With AI AI Similarity)
-// Used when a lawyer clicks "View Details" to perform research
+// 2. GET SINGLE CASE BY ID (With AI Similarity)
 // ------------------------------------------------------------------
 router.get('/:id', verifyToken, allowRoles('admin', 'client', 'lawyer'), async (req, res) => {
     const { id } = req.params;
@@ -50,20 +50,18 @@ router.get('/:id', verifyToken, allowRoles('admin', 'client', 'lawyer'), async (
 
         const currentCase = results[0];
 
-        // RESTORED AI LOGIC:
-        // We use the AI utility to find past cases that match the current description
         const similarCases = await findSimilarCases(
             currentCase.id,
             currentCase.title,
             currentCase.description,
-            5 // Number of recommendations
+            5 
         );
 
         res.json({ 
             success: true, 
             data: { 
                 currentCase, 
-                similarCases // The AI results are sent back to the frontend here
+                similarCases 
             } 
         });
     } catch (err) {
@@ -77,7 +75,8 @@ router.get('/:id', verifyToken, allowRoles('admin', 'client', 'lawyer'), async (
 // ------------------------------------------------------------------
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     try {
-        const [results] = await db.query('SELECT * FROM cases');
+        // Using SELECT * will automatically include the new category column
+        const [results] = await db.query('SELECT * FROM cases ORDER BY category ASC, created_at DESC');
         res.json({ success: true, data: results });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Error fetching cases' });
@@ -86,34 +85,55 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
 
 // ------------------------------------------------------------------
 // 4. CREATE NEW CASE
+// Updated to accept and save 'category'
 // ------------------------------------------------------------------
 router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
-    const { title, description, status, client_id, assigned_lawyer_id } = req.body;
+    const { title, description, status, client_id, assigned_lawyer_id, category } = req.body;
     try {
-        const query = 'INSERT INTO cases (title, description, status, client_id, assigned_lawyer_id) VALUES (?, ?, ?, ?, ?)';
-        const [results] = await db.query(query, [title, description, status, client_id, assigned_lawyer_id || null]);
+        const query = `
+            INSERT INTO cases (title, description, status, client_id, assigned_lawyer_id, category) 
+            VALUES (?, ?, ?, ?, ?, ?)`;
+        const [results] = await db.query(query, [
+            title, 
+            description, 
+            status || 'pending', 
+            client_id, 
+            assigned_lawyer_id || null, 
+            category || 'General' // Default if not provided
+        ]);
         res.status(201).json({ success: true, message: 'Case created successfully', caseId: results.insertId });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ success: false, message: 'Error creating case' });
     }
 });
 
 // ------------------------------------------------------------------
 // 5. UPDATE CASE
+// Updated to allow updating the category
 // ------------------------------------------------------------------
 router.put('/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
     const { id } = req.params;
-    const { title, description, status, client_id, assigned_lawyer_id } = req.body;
+    const { title, description, status, client_id, assigned_lawyer_id, category } = req.body;
     const query = `
         UPDATE cases SET
             title = COALESCE(?, title),
             description = COALESCE(?, description),
             status = COALESCE(?, status),
             client_id = COALESCE(?, client_id),
-            assigned_lawyer_id = COALESCE(?, assigned_lawyer_id)
+            assigned_lawyer_id = COALESCE(?, assigned_lawyer_id),
+            category = COALESCE(?, category)
         WHERE id = ?`;
     try {
-        const [results] = await db.query(query, [title ?? null, description ?? null, status ?? null, client_id ?? null, assigned_lawyer_id ?? null, id]);
+        const [results] = await db.query(query, [
+            title ?? null, 
+            description ?? null, 
+            status ?? null, 
+            client_id ?? null, 
+            assigned_lawyer_id ?? null, 
+            category ?? null,
+            id
+        ]);
         if (results.affectedRows === 0) return res.status(404).json({ success: false, message: 'Case not found' });
         res.json({ success: true, message: 'Case updated successfully' });
     } catch (err) {
@@ -131,6 +151,42 @@ router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
         res.json({ success: true, message: 'Case deleted successfully' });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Error deleting case' });
+    }
+});
+
+// ------------------------------------------------------------------
+// 7. GET CLIENT CASES
+// Updated to include 'category' for client view
+// ------------------------------------------------------------------
+router.get('/client/:userId', verifyToken, allowRoles('admin', 'client'), async (req, res) => {
+    const { userId } = req.params;
+    
+    try {
+        const query = `
+            SELECT 
+                c.id AS case_id, 
+                c.title AS case_title, 
+                c.description, 
+                c.status, 
+                c.category,  -- Added Category
+                c.created_at,
+                l.name AS lawyer_name
+            FROM cases c
+            LEFT JOIN lawyers l ON c.assigned_lawyer_id = l.id
+            JOIN clients cl ON c.client_id = cl.id
+            JOIN users u ON cl.email = u.email
+            WHERE u.id = ?
+            ORDER BY c.created_at DESC`;
+        
+        const [results] = await db.query(query, [userId]);
+        res.json({ success: true, data: results });
+    } catch (err) {
+        console.error('SQL ERROR in Client Cases:', err.message);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Database error', 
+            error: err.message 
+        });
     }
 });
 

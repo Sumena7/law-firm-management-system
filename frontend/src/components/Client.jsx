@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import api from "../api";
 import "../App.css";
+// Import SweetAlert2
+import Swal from "sweetalert2";
 
 function Client() {
   const [clients, setClients] = useState([]);
-  const [searchTerm, setSearchTerm] = useState(""); // For searching by ID or Name
+  const [searchTerm, setSearchTerm] = useState(""); 
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", address: "" });
-  const [message, setMessage] = useState("");
   const [editingId, setEditingId] = useState(null);
 
   const fetchClients = async () => {
@@ -23,7 +24,7 @@ function Client() {
     fetchClients();
   }, []);
 
-  // --- Search Logic ---
+  // Filter logic remains the same
   const filteredClients = clients.filter((client) => {
     const term = searchTerm.toLowerCase();
     return (
@@ -34,20 +35,35 @@ function Client() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
     try {
       if (editingId) {
         await api.put(`/clients/${editingId}`, formData);
-        setMessage("Client updated successfully! ✅");
+        Swal.fire({
+          icon: 'success',
+          title: 'Updated!',
+          text: 'Client details have been updated.',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } else {
         await api.post("/clients", formData);
-        setMessage("Client added successfully! ✅");
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'New client added to the database.',
+          timer: 2000,
+          showConfirmButton: false
+        });
       }
       setFormData({ name: "", email: "", phone: "", address: "" });
       setEditingId(null);
       fetchClients();
     } catch (err) {
-      setMessage(err.response?.data?.message || "Error saving client");
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: err.response?.data?.message || "Error saving client",
+      });
     }
   };
 
@@ -62,21 +78,41 @@ function Client() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // --- REFACTORED DELETE WITH SWEETALERT2 ---
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this client?")) return;
-    try {
-      await api.delete(`/clients/${id}`);
-      fetchClients();
-      setMessage("Client deleted. 🗑️");
-    } catch (err) {
-      alert("Delete failed.");
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "This client record will be permanently removed!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'No, keep it'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await api.delete(`/clients/${id}`);
+        fetchClients();
+        Swal.fire(
+          'Deleted!',
+          'The client has been deleted.',
+          'success'
+        );
+      } catch (err) {
+        Swal.fire(
+          'Failed!',
+          'Could not delete the client. They might be linked to active cases.',
+          'error'
+        );
+      }
     }
   };
 
   return (
     <div className="container">
       <h2>👥 Client Management</h2>
-      {message && <p className={`message ${message.includes('Error') ? 'error' : 'success'}`}>{message}</p>}
 
       {/* Add/Edit Form Card */}
       <div className="card">
@@ -126,7 +162,7 @@ function Client() {
       </div>
 
       {/* Search Header Row */}
-      <div className="table-header-row">
+      <div className="table-header-row" style={{ marginTop: '30px' }}>
         <h3>Client List</h3>
         <input 
           type="text" 
@@ -170,7 +206,7 @@ function Client() {
               ))
             ) : (
               <tr>
-                <td colSpan="5" className="empty">
+                <td colSpan="5" className="empty" style={{ textAlign: 'center', padding: '20px' }}>
                   {searchTerm ? `No results found for "${searchTerm}"` : "No clients registered yet."}
                 </td>
               </tr>

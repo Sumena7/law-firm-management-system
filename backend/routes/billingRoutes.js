@@ -9,194 +9,135 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
-// -------------------- Create a new invoice -------------------- //
-// Roles: admin, staff
+// -------------------- 1. Create a New Invoice -------------------- //
 router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
-    const { case_id, amount, issued_date, due_date, status } = req.body;
+    const { case_id, appointment_id, amount, issued_date, due_date, status } = req.body;
 
-    if (!case_id || !amount || !issued_date || !due_date) {
-        return res.status(400).json({ success: false, message: 'case_id, amount, issued_date, and due_date are required' });
+    // Validation: Require either Case ID or Appointment ID
+    if ((!case_id && !appointment_id) || !amount || !issued_date || !due_date) {
+        return res.status(400).json({ success: false, message: 'Reference ID, amount, and dates are required' });
     }
 
     const invoiceStatus = status || 'Pending';
 
     try {
-        // Prevent duplicate pending invoice for the same case
-        const [existing] = await db.query(
-            'SELECT * FROM invoices WHERE case_id = ? AND status = ?',
-            [case_id, 'Pending']
-        );
-        if (existing.length > 0) {
-            return res.status(400).json({ success: false, message: 'Pending invoice already exists for this case' });
-        }
-
-        // Insert invoice
+        // 1. Insert invoice into DB (Handles NULL for case_id or appointment_id)
         const [results] = await db.query(
-            `INSERT INTO invoices (case_id, amount, issued_date, due_date, status, created_at)
-             VALUES (?, ?, ?, ?, ?, NOW())`,
-            [case_id, amount, issued_date, due_date, invoiceStatus]
+            `INSERT INTO invoices (case_id, appointment_id, amount, issued_date, due_date, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+            [case_id || null, appointment_id || null, amount, issued_date, due_date, invoiceStatus]
         );
 
         const invoiceId = results.insertId;
+        let recipient = null;
 
-        // Fetch invoice data
-        const [invoiceResults] = await db.query('SELECT * FROM invoices WHERE id = ?', [invoiceId]);
-        const invoice = invoiceResults[0];
+        // 2. RECIPIENT LOOKUP LOGIC
+        if (case_id) {
+            // Standard Case -> Client lookup
+            const [rows] = await db.query(`
+                SELECT c.name, c.email FROM cases ca
+                JOIN clients c ON ca.client_id = c.id
+                WHERE ca.id = ?`, [case_id]);
+            recipient = rows[0];
+        } else if (appointment_id) {
+            // Appointment Lookup: Check Users table first, then fallback to Clients
+            const [appt] = await db.query(`SELECT client_id FROM appointments WHERE id = ?`, [appointment_id]);
+            
+            if (appt.length > 0) {
+                const targetId = appt[0].client_id;
 
-        // Fetch client data
-        const [clientResults] = await db.query(`
-            SELECT c.name, c.email
-            FROM cases
-            JOIN clients c ON cases.client_id = c.id
-            WHERE cases.id = ?
-        `, [invoice.case_id]);
+                // Attempt to find in Users table (e.g., User: 29)
+                const [userRows] = await db.query(`SELECT name, email FROM users WHERE id = ?`, [targetId]);
+                
+                if (userRows.length > 0 && userRows[0].email) {
+                    recipient = userRows[0];
+                } else {
+                    // Fallback to Clients table (e.g., Client: 10)
+                    const [clientRows] = await db.query(`SELECT name, email FROM clients WHERE id = ?`, [targetId]);
+                    recipient = clientRows[0];
+                }
+            }
+        }
 
-        const client = clientResults[0];
-
-        if (client) {
-            // Generate PDF in temp directory
+        // 3. GENERATE PDF & SEND EMAIL if recipient exists
+        if (recipient && recipient.email) {
             const tempDir = path.join(os.tmpdir(), `invoice_${invoiceId}`);
             if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
             const pdfPath = path.join(tempDir, `Invoice_${invoiceId}.pdf`);
 
-            const invoiceAmount = Number(invoice.amount); // Ensure numeric
-
             const doc = new PDFDocument({ margin: 50 });
             doc.pipe(fs.createWriteStream(pdfPath));
 
-            doc.fontSize(20).text('Law Firm Invoice', { align: 'center' });
+            doc.fontSize(22).text('Everest Law Chamber', { align: 'center' });
+            doc.fontSize(14).text('Invoice / Receipt', { align: 'center' });
             doc.moveDown();
 
-            doc.fontSize(12).text(`Invoice ID: ${invoice.id}`);
-            doc.text(`Case ID: ${invoice.case_id}`);
-            doc.text(`Amount: $${invoiceAmount.toFixed(2)}`);
-            doc.text(`Issued Date: ${invoice.issued_date}`);
-            doc.text(`Due Date: ${invoice.due_date}`);
-            doc.text(`Status: ${invoice.status}`);
+            doc.fontSize(12).text(`Invoice ID: #${invoiceId}`);
+            doc.text(`Bill To: ${recipient.name}`);
+            doc.text(`Reference: ${case_id ? `Case #${case_id}` : `Appointment #${appointment_id}`}`);
+            doc.text(`Amount: Rs. ${Number(amount).toFixed(2)}`);
+            doc.text(`Issued Date: ${issued_date}`);
+            doc.text(`Due Date: ${due_date}`);
             doc.moveDown();
-
-            doc.text('Payments:', { underline: true });
-            doc.text('No payments made yet.');
+            doc.text('Thank you for your business.', { align: 'center' });
 
             doc.end();
 
-            // Send email with PDF
-            const emailText = `Hello ${client.name},
+            await sendEmail({
+                to: recipient.email,
+                subject: `New Invoice #${invoiceId} - Everest Law Chamber`,
+                text: `Hello ${recipient.name},\n\nA new invoice has been generated for your ${case_id ? 'case' : 'appointment'}.\n\nAmount: Rs. ${Number(amount).toFixed(2)}\nDue Date: ${due_date}\n\nPlease see the attached PDF for details.`,
+                attachmentPath: pdfPath
+            });
 
-A new invoice has been created for your case (Case ID: ${invoice.case_id}).
-
-Amount: $${invoiceAmount.toFixed(2)}
-Issued Date: ${invoice.issued_date}
-Due Date: ${invoice.due_date}
-Status: ${invoice.status}
-
-The invoice PDF is attached.`;
-
-            await sendEmail(client.email, `New Invoice #${invoice.id}`, emailText, pdfPath);
-
-            // Clean up temp PDF
-            fs.rmSync(tempDir, { recursive: true, force: true });
-        } else {
-            console.warn('Client not found for invoice', invoiceId);
+            // Cleanup
+            setTimeout(() => { if (fs.existsSync(tempDir)) fs.rmSync(tempDir, { recursive: true, force: true }); }, 5000);
         }
 
         res.status(201).json({ success: true, message: 'Invoice created and email sent', invoiceId });
 
     } catch (err) {
-        console.error('Error creating invoice:', err);
-        res.status(500).json({ success: false, message: 'Error creating invoice' });
+        console.error('Billing Error:', err);
+        res.status(500).json({ success: false, message: 'Error processing billing' });
     }
 });
 
-// -------------------- List invoices -------------------- //
-// Roles: admin/staff = all invoices, client = own invoices
+// -------------------- 2. List All Invoices -------------------- //
 router.get('/', verifyToken, async (req, res) => {
-    let query = 'SELECT * FROM invoices';
-    const params = [];
-
-    if (req.user.role === 'client') {
-        query += ' WHERE client_id = ?';
-        params.push(req.user.id);
-    }
-
     try {
-        const [results] = await db.query(query, params);
+        const [results] = await db.query('SELECT * FROM invoices ORDER BY created_at DESC');
         res.json({ success: true, data: results });
     } catch (err) {
-        console.error('Error fetching invoices:', err);
         res.status(500).json({ success: false, message: 'Error fetching invoices' });
     }
 });
 
-// -------------------- Get single invoice (with payments) -------------------- //
-router.get('/:id', verifyToken, async (req, res) => {
-    const { id } = req.params;
-
-    try {
-        const [invoiceResults] = await db.query('SELECT * FROM invoices WHERE id = ?', [id]);
-        if (invoiceResults.length === 0) return res.status(404).json({ success: false, message: 'Invoice not found' });
-
-        const invoice = invoiceResults[0];
-
-        if (req.user.role === 'client' && invoice.client_id !== req.user.id) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const [paymentResults] = await db.query('SELECT * FROM payments WHERE invoice_id = ?', [id]);
-        res.json({ success: true, data: { invoice, payments: paymentResults } });
-
-    } catch (err) {
-        console.error('Error fetching invoice:', err);
-        res.status(500).json({ success: false, message: 'Error fetching invoice' });
-    }
-});
-// -------------------- Record a payment -------------------- //
-// Roles: admin/staff
+// -------------------- 3. Record a Payment -------------------- //
 router.post('/:id/pay', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     const { id } = req.params;
     const { paid_by, amount, method, payment_date } = req.body;
 
-    if (!paid_by || !amount || !method || !payment_date) {
-        return res.status(400).json({ success: false, message: 'paid_by, amount, method, and payment_date are required' });
-    }
-
     try {
-        // recorded_by = the current logged-in user (admin/staff)
-        const recorded_by = req.user.id;
-
-        const [results] = await db.query(
+        await db.query(
             `INSERT INTO payments (invoice_id, paid_by, recorded_by, amount, method, payment_date, created_at)
              VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-            [id, paid_by, recorded_by, amount, method, payment_date]
+            [id, paid_by, req.user.id, amount, method, payment_date]
         );
 
-        // Update invoice status
         const [sumResults] = await db.query('SELECT SUM(amount) as totalPaid FROM payments WHERE invoice_id = ?', [id]);
-        const totalPaid = sumResults[0].totalPaid;
+        const totalPaid = sumResults[0].totalPaid || 0;
 
         const [invoiceResults] = await db.query('SELECT amount FROM invoices WHERE id = ?', [id]);
-        const invoiceAmount = Number(invoiceResults[0].amount);
+        const invoiceTotal = Number(invoiceResults[0].amount);
 
-        let status = 'Pending';
-        if (totalPaid >= invoiceAmount) status = 'Paid';
-        else if (totalPaid > 0) status = 'Partially Paid';
+        let newStatus = totalPaid >= invoiceTotal ? 'Paid' : (totalPaid > 0 ? 'Partially Paid' : 'Pending');
 
-        await db.query('UPDATE invoices SET status = ? WHERE id = ?', [status, id]);
+        await db.query('UPDATE invoices SET status = ? WHERE id = ?', [newStatus, id]);
 
-        res.json({ 
-            success: true, 
-            message: 'Payment recorded', 
-            paymentId: results.insertId, 
-            invoiceStatus: status,
-            recordedBy: recorded_by,
-            paidBy: paid_by
-        });
-
+        res.json({ success: true, message: 'Payment recorded', status: newStatus });
     } catch (err) {
-        console.error('Error recording payment:', err);
         res.status(500).json({ success: false, message: 'Error recording payment' });
     }
 });
-
 
 module.exports = router;

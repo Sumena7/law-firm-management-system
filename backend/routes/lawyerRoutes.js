@@ -6,14 +6,10 @@ const { allowRoles } = require('../middleware/roleMiddleware');
 
 /**
  * 1. LAWYER DASHBOARD STATS
- * URL: /api/lawyers/:userId/stats
- * Priority: High (placed above /:id)
- * Access: lawyer, admin, staff
  */
 router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff'), async (req, res) => {
     const { userId } = req.params;
     try {
-        // 1. Get Lawyer ID
         const [lawyerProfile] = await db.query(
             `SELECT id FROM lawyers WHERE email = (SELECT email FROM users WHERE id = ?)`, 
             [userId]
@@ -24,8 +20,6 @@ router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff')
         }
         const realLawyerId = lawyerProfile[0].id;
 
-        // 2. Optimized Stats Query
-        // FIX: Changed c.case_id to c.id (Common cause for 500 error)
         const statsQuery = `
             SELECT 
                 (SELECT COUNT(*) FROM cases WHERE assigned_lawyer_id = ?) as total_cases,
@@ -40,53 +34,80 @@ router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff')
         res.json({ success: true, data: results[0] });
 
     } catch (err) {
-        console.error('SERVER CRASHED AT STATS:', err.message); // This will show in your terminal
-        res.status(500).json({ success: false, message: 'Database query failed', error: err.message });
+        console.error('SERVER ERROR AT STATS:', err.message);
+        res.status(500).json({ success: false, message: 'Database query failed' });
     }
 });
 
 /**
- * 2. GET ALL LAWYERS (Admin/Staff Only)
- * URL: /api/lawyers
+ * 2. GET PUBLIC LAWYER PROFILES (For Clients)
+ */
+/**
+ * 2. GET PUBLIC LAWYER PROFILES (For Clients)
+ */
+router.get('/public/list', verifyToken, async (req, res) => {
+    try {
+        // ✅ CRITICAL UPDATE: Added work_days to the SELECT statement
+        const query = `
+            SELECT id, name, specialization, experience, bio, address, phone, available_hours, work_days 
+            FROM lawyers
+        `;
+        const [results] = await db.query(query);
+        res.json({ success: true, data: results });
+    } catch (err) {
+        console.error('Error fetching public directory:', err);
+        res.status(500).json({ success: false, message: 'Error fetching lawyer directory' });
+    }
+});
+
+/**
+ * 3. GET ALL LAWYERS (Admin/Staff Only)
  */
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     try {
         const [results] = await db.query('SELECT * FROM lawyers');
         res.json({ success: true, data: results });
     } catch (err) {
-        console.error('Error fetching lawyers', err);
         res.status(500).json({ success: false, message: 'Error fetching lawyers' });
     }
 });
 
 /**
- * 3. GET LAWYER BY ID (Profile View)
- * URL: /api/lawyers/:id
- * Priority: Low (placed at bottom)
+ * 4. GET LAWYER BY ID
  */
 router.get('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     try {
         const [results] = await db.query('SELECT * FROM lawyers WHERE id = ?', [id]);
-        if (results.length === 0) {
-            return res.status(404).json({ success: false, message: 'Lawyer not found' });
-        }
+        if (results.length === 0) return res.status(404).json({ success: false, message: 'Lawyer not found' });
         res.json({ success: true, data: results[0] });
     } catch (err) {
-        console.error('Error fetching lawyer', err);
         res.status(500).json({ success: false, message: 'Error fetching lawyer' });
     }
 });
 
 /**
- * 4. ADD NEW LAWYER (Admin Only)
+ * 5. A/**
+ * 5. ADD NEW LAWYER (Updated with work_days)
  */
 router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
-    const { name, email, phone, specialization, experience, address } = req.body;
+    // Added work_days to destructuring
+    const { name, email, phone, specialization, experience, address, bio, available_hours, work_days } = req.body;
     try {
         const [results] = await db.query(
-            `INSERT INTO lawyers (name, email, phone, specialization, experience, address) VALUES (?, ?, ?, ?, ?, ?)`,
-            [name, email, phone, specialization, experience, address]
+            `INSERT INTO lawyers (name, email, phone, specialization, experience, address, bio, available_hours, work_days) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                name, 
+                email, 
+                phone, 
+                specialization, 
+                experience, 
+                address, 
+                bio, 
+                available_hours || "09:00,10:00,11:00,13:00,14:00,15:00",
+                work_days || "Monday,Tuesday,Wednesday,Thursday,Friday" // Default value
+            ]
         );
         res.status(201).json({ success: true, message: 'Lawyer added successfully', lawyerId: results.insertId });
     } catch (err) {
@@ -96,27 +117,48 @@ router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
 });
 
 /**
- * 5. UPDATE LAWYER (Admin Only)
+ * 6. UPDATE LAWYER (Updated with work_days)
  */
 router.put('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;
-    const { name, email, phone, specialization, experience, address } = req.body;
+    const { name, email, phone, specialization, experience, address, bio, available_hours, work_days } = req.body;
+    
     const query = `
         UPDATE lawyers 
-        SET name=COALESCE(?,name), email=COALESCE(?,email), phone=COALESCE(?,phone), 
-            specialization=COALESCE(?,specialization), experience=COALESCE(?,experience), address=COALESCE(?,address) 
+        SET name=COALESCE(?,name), 
+            email=COALESCE(?,email), 
+            phone=COALESCE(?,phone), 
+            specialization=COALESCE(?,specialization), 
+            experience=COALESCE(?,experience), 
+            address=COALESCE(?,address), 
+            bio=COALESCE(?,bio),
+            available_hours=COALESCE(?,available_hours),
+            work_days=COALESCE(?,work_days) 
         WHERE id = ?`;
+        
     try {
-        const [results] = await db.query(query, [name??null, email??null, phone??null, specialization??null, experience??null, address??null, id]);
+        const [results] = await db.query(query, [
+            name || null, 
+            email || null, 
+            phone || null, 
+            specialization || null, 
+            experience || null, 
+            address || null, 
+            bio || null, 
+            available_hours || null, 
+            work_days || null,
+            id
+        ]);
+        
         if (results.affectedRows === 0) return res.status(404).json({ success: false, message: 'Lawyer not found' });
-        res.json({ success: true, message: 'Lawyer updated successfully' });
+        res.json({ success: true, message: 'Lawyer profile and schedule updated' });
     } catch (err) {
+        console.error(err);
         res.status(500).json({ success: false, message: 'Error updating lawyer' });
     }
 });
-
 /**
- * 6. DELETE LAWYER (Admin Only)
+ * 7. DELETE LAWYER
  */
 router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;

@@ -168,6 +168,25 @@ router.get('/preview/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), 
   }
 });
 
+
+router.get('/client/:userId', verifyToken, allowRoles('admin', 'client'), async (req, res) => {
+    const { userId } = req.params;
+    try {
+        const query = `
+            SELECT d.* FROM documents d
+            JOIN cases c ON d.case_id = c.id
+            WHERE c.client_id = (
+                SELECT id FROM clients WHERE email = (SELECT email FROM users WHERE id = ?)
+            )
+            ORDER BY d.uploaded_at DESC`;
+        
+        const [results] = await db.query(query, [userId]);
+        res.json({ success: true, data: results });
+    } catch (err) {
+        console.error('Fetch error:', err);
+        res.status(500).json({ success: false, message: 'Database error' });
+    }
+});
 // DELETE DOCUMENT
 router.delete('/:id', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
   const { id } = req.params;

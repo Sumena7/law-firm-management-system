@@ -10,12 +10,16 @@ const { sendEmail } = require('../utils/notification');
 
 const JWT_SECRET =process.env.JWT_SECRET; // Secret key for signing JWTs
 
-// ---------------- REGISTER ----------------
+/// ---------------- REGISTER ----------------
 router.post('/register', async (req, res) => {
     let { name, email, password, role } = req.body;
 
     // Default role to 'client' (outsider)
     role = role || 'client';
+
+    // 🔧 Normalize inputs (CRITICAL)
+    email = email?.trim().toLowerCase();
+    name = name?.trim();
 
     if (!name || !email || !password) {
         return res.status(400).json({ message: 'Name, email, and password are required' });
@@ -24,41 +28,70 @@ router.post('/register', async (req, res) => {
     try {
         // 1️⃣ GATEKEEPER CHECK: Verify internal office roles
         if (role === 'lawyer') {
-            const [lawyer] = await db.query('SELECT id FROM lawyers WHERE email = ?', [email]);
+            const [lawyer] = await db.query(
+                'SELECT id FROM lawyers WHERE email = ?',
+                [email]
+            );
             if (lawyer.length === 0) {
-                return res.status(403).json({ message: 'Your email is not authorized as a Lawyer profile. Please contact Admin.' });
+                return res.status(403).json({
+                    message: 'Your email is not authorized as a Lawyer profile. Please contact Admin.'
+                });
             }
         } 
         else if (role === 'staff') {
-            const [staff] = await db.query('SELECT id FROM staffs WHERE email = ?', [email]);
+            const [staff] = await db.query(
+                'SELECT id FROM staffs WHERE email = ?',
+                [email]
+            );
             if (staff.length === 0) {
-                return res.status(403).json({ message: 'Your email is not authorized as a Staff member. Please contact Admin.' });
+                return res.status(403).json({
+                    message: 'Your email is not authorized as a Staff member. Please contact Admin.'
+                });
             }
         }
         else if (role === 'admin') {
             // Prevent random registration as Admin if one already exists
-            const [adminCheck] = await db.query('SELECT id FROM users WHERE role = "admin"');
+            const [adminCheck] = await db.query(
+                'SELECT id FROM users WHERE role = "admin"'
+            );
             if (adminCheck.length > 0) {
-                return res.status(403).json({ message: 'Administrative registration is closed. Contact the existing Admin to create an account.' });
+                return res.status(403).json({
+                    message: 'Administrative registration is closed. Contact the existing Admin to create an account.'
+                });
             }
         }
 
         // 2️⃣ Check if email already exists in users table
-        const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+        const [existing] = await db.query(
+            'SELECT id FROM users WHERE email = ?',
+            [email]
+        );
+
         if (existing.length > 0) {
             return res.status(400).json({ message: 'Email already registered' });
         }
 
         // 3️⃣ Hash the password and Insert
         const hashedPassword = await bcrypt.hash(password, 10);
-        await db.query(
+
+        const [result] = await db.query(
             'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [name, email, hashedPassword, role]
         );
 
-        res.status(201).json({ message: `User registered successfully as ${role}` });
+        // 🧪 DEBUG PROOF (DO NOT REMOVE)
+        console.log('✅ USER INSERTED');
+        console.log('➡️ Insert ID:', result.insertId);
+        console.log('➡️ Email:', email);
+        console.log('➡️ Role:', role);
+
+        res.status(201).json({
+            message: `User registered successfully as ${role}`,
+            userId: result.insertId
+        });
+
     } catch (err) {
-        console.error('Registration error:', err);
+        console.error('❌ Registration error:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });

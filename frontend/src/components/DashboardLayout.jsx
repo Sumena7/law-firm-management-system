@@ -1,13 +1,12 @@
 import { Outlet, Link, useNavigate, useLocation } from "react-router-dom";
-import DashboardStats from "./DashboardStats"; 
+import AppointmentNotification from "./AppointmentNotification"; 
 import "../App.css";
 
 function DashboardLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const isAdmin = user.role === 'admin';
+  const isAdmin = user.role === 'admin' || user.role === 'staff';
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -16,60 +15,51 @@ function DashboardLayout() {
     window.location.reload();
   };
 
-  // This matches the ".active-link a" rule in your App.css
-  const getNavClass = (path) => location.pathname === path ? "active-link" : "";
-
   return (
     <div className="dashboard-wrapper">
+      {/* LEFT SIDEBAR */}
       <aside className="sidebar">
         <div className="sidebar-header">
           <h2>JusticePanel</h2>
           <p>Legal Admin System</p>
         </div>
-        
         <nav className="sidebar-nav">
           <ul>
-            <li className={getNavClass("/cases")}>
-              <Link to="/cases">📂 Cases</Link>
-            </li>
-            <li className={getNavClass("/clients")}>
-              <Link to="/clients">👥 Clients</Link>
-            </li>
-            <li className={getNavClass("/lawyers")}>
-              <Link to="/lawyers">⚖️ Lawyers</Link>
-            </li>
-            <li className={getNavClass("/appointments")}>
-              <Link to="/appointments">📅 Appointments</Link>
-            </li>
-            <li className={getNavClass("/invoices")}>
-              <Link to="/invoices">💳 Billing & Invoices</Link>
-            </li>
-            <li className={getNavClass("/documents")}>
-              <Link to="/documents">📄 Documents</Link>
-            </li>
-
-            {isAdmin && (
-              <li className={getNavClass("/admin/users")}>
-                <Link to="/admin/users">🛡️ Manage Users</Link>
-              </li>
-            )}
+            {/* Added the link to the Dashboard page */}
+            <li><Link to="/dashboard">📊 Dashboard</Link></li>
+            <li><Link to="/cases">📂 Cases</Link></li>
+            <li><Link to="/clients">👥 Clients</Link></li>
+            <li><Link to="/lawyers">⚖️ Lawyers</Link></li>
+            <li><Link to="/appointments">📅 Appointments</Link></li>
+            <li><Link to="/invoices">💳 Billing</Link></li>
+            <li><Link to="/documents">📄 Documents</Link></li>
           </ul>
         </nav>
-
-        <div className="sidebar-footer">
-          <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.8rem' }}>
-            Logged in as: <span style={{ color: '#fff', textTransform: 'capitalize' }}>{user.role}</span>
-          </div>
-          <button className="btn danger" onClick={handleLogout} style={{width: '100%'}}>
-            Logout
-          </button>
+        <div className="sidebar-footer" style={{ padding: '20px' }}>
+          <button className="btn danger" style={{ width: '100%' }} onClick={handleLogout}>Logout</button>
         </div>
       </aside>
 
+      {/* RIGHT CONTENT AREA */}
       <main className="main-content">
-        <DashboardStats /> 
-        <div className="container">
-          <Outlet /> 
+        <header className="top-header">
+          <div className="breadcrumb">
+            Admin / <strong>{location.pathname.replace("/", "").toUpperCase() || "DASHBOARD"}</strong>
+          </div>
+          
+          <div className="header-actions">
+            {isAdmin && <AppointmentNotification />}
+            <div className="user-pill">
+              {user.role}
+            </div>
+          </div>
+        </header>
+
+        <div className="content-padding">
+          <div className="container">
+            {/* STATS REMOVED FROM HERE: They now live in Overview.jsx */}
+            <Outlet /> 
+          </div>
         </div>
       </main>
     </div>

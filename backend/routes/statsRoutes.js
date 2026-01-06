@@ -1,18 +1,32 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db'); // Goes up one level to find your db.js
+const db = require('../db');
 
 router.get('/dashboard-summary', async (req, res) => {
     try {
-        // SQL queries to count rows in each table
-        const casesQuery = "SELECT COUNT(*) as count FROM cases";
+        const { period } = req.query;
+        
+        // Helper to create filter only if column exists
+        const getFilter = (columnName) => {
+            if (period === "Today") {
+                return ` WHERE DATE(${columnName}) = CURDATE()`;
+            } else if (period === "This Month") {
+                return ` WHERE MONTH(${columnName}) = MONTH(CURDATE()) AND YEAR(${columnName}) = YEAR(CURDATE())`;
+            }
+            return ""; // All Time
+        };
+
+        // Apply filters only to tables that definitely have timestamps
+        // Adjust the column names (created_at vs issued_date) to match your DB
+        const casesQuery = `SELECT COUNT(*) as count FROM cases ${getFilter('created_at')}`;
+        const appointmentsQuery = `SELECT COUNT(*) as count FROM appointments ${getFilter('appointment_date')}`;
+        const billingQuery = `SELECT COUNT(*) as count FROM invoices ${getFilter('created_at')}`;
+        
+        // Tables that usually don't need time-slicing (showing total counts)
         const clientsQuery = "SELECT COUNT(*) as count FROM clients";
         const lawyersQuery = "SELECT COUNT(*) as count FROM lawyers";
-        const appointmentsQuery = "SELECT COUNT(*) as count FROM appointments";
-        const billingQuery = "SELECT COUNT(*) as count FROM invoices"; // check if table name is 'billing' or 'invoices'
         const documentsQuery = "SELECT COUNT(*) as count FROM documents";
 
-        // Execute all queries
         const [cases] = await db.query(casesQuery);
         const [clients] = await db.query(clientsQuery);
         const [lawyers] = await db.query(lawyersQuery);
@@ -32,8 +46,9 @@ router.get('/dashboard-summary', async (req, res) => {
             }
         });
     } catch (err) {
-        console.error("Stats Error:", err);
-        res.status(500).json({ success: false, message: err.message });
+        // This will print the EXACT SQL error in your terminal
+        console.error("STATS ROUTE CRASHED:", err.message);
+        res.status(500).json({ success: false, message: "Database Error" });
     }
 });
 

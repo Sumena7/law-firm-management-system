@@ -46,6 +46,8 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/invoices', billingRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/dashboard-summary', statsRoutes);
+// This allows the browser to actually open the PDFs
+app.use('/uploads', express.static('uploads'));
 
 // 4. AI/Utility Features
 app.use('/api/summarize', summarizeRoute);

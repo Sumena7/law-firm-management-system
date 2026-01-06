@@ -28,9 +28,9 @@ function Login() {
         // 3. ROLE-BASED NAVIGATION
         // This must match the routes defined in your App.jsx
         if (user.role === 'lawyer') {
-          navigate("/lawyer/cases"); 
+          navigate("/lawyer/dashboard"); 
         } else if (user.role === 'admin') {
-          navigate("/cases");
+          navigate("/dashboard");
         } else {
           // Fallback for clients or other roles
           navigate("/");

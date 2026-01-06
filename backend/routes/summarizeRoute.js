@@ -2,95 +2,92 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const fs = require('fs');
-// Using pdf-parse-new for better compatibility with modern Node environments
+const path = require('path');
 const pdf = require('pdf-parse-new'); 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
 
-// Initialize Gemini
+// 1. Correct Initialization for 2.5-flash-lite
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
 
-// ---------------------------------------------------------
-// POST: /api/summarize/:documentId
-// ---------------------------------------------------------
 router.post('/:documentId', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
     const { documentId } = req.params;
 
     try {
-        // 1. Fetch document details from DB
         const [docs] = await db.query(
             'SELECT file_path, case_id, file_type FROM documents WHERE id = ?', 
             [documentId]
         );
         
-        if (docs.length === 0) {
-            return res.status(404).json({ success: false, message: "Document not found in database." });
-        }
+        if (docs.length === 0) return res.status(404).json({ success: false, message: "Document not found." });
 
         const { file_path, case_id, file_type } = docs[0];
 
-        // 2. Format validation
-        if (file_type !== 'application/pdf') {
-            return res.status(400).json({ success: false, message: "AI summarization currently only supports PDF files." });
+        // 2. Normalize Windows Paths
+        const normalizedPath = path.resolve(file_path);
+        if (!fs.existsSync(normalizedPath)) {
+            return res.status(404).json({ success: false, message: "File missing on disk." });
         }
 
-        // 3. Check if file exists on disk
-        if (!fs.existsSync(file_path)) {
-            return res.status(404).json({ success: false, message: "Physical file not found on server." });
-        }
-
-        // 4. Extract text from the PDF directly (No Unzipping)
-        // Read the file into a buffer
-        const contentBuffer = fs.readFileSync(file_path);
-        
-        // Extract text using pdf-parse-new
+        // 3. Extract Text
+        const contentBuffer = fs.readFileSync(normalizedPath);
         const pdfData = await pdf(contentBuffer);
-        const extractedText = pdfData.text;
+        
+        // Clean white spaces and newlines
+        let extractedText = pdfData.text.replace(/\s+/g, ' ').trim();
 
-        if (!extractedText || extractedText.trim().length < 20) {
+        // DEBUG: Check your terminal after clicking 'AI Gist'
+        console.log("--- DEBUG: EXTRACTED TEXT START ---");
+        console.log(extractedText || "NO TEXT FOUND");
+        console.log("--- DEBUG: EXTRACTED TEXT END ---");
+
+        if (!extractedText || extractedText.length < 20) {
             return res.status(400).json({ 
                 success: false, 
-                message: "Could not extract readable text. The PDF might be a scanned image or protected." 
+                message: "Text extraction failed. This PDF might be an image scan." 
             });
         }
 
-        // 5. Send to Gemini for the Nepali Gist
-        // We limit text to 15,000 characters to stay within token limits while capturing most content
+        // 4. Generate Content (Variable fixed to extractedText)
         const prompt = `
-            तपाईं एक नेपाली कानूनी विशेषज्ञ हुनुहुन्छ। 
-            तल दिइएको कानूनी कागजातको मुख्य कुराहरू (Gist) ३-४ बुँदामा स्पष्टसँग नेपालीमा लेख्नुहोस्।
-            कागजातको विषय, मुख्य पक्षहरू र निष्कर्षमा केन्द्रित हुनुहोस्।
-            
-            कागजातको पाठ (Document Text): 
-            ${extractedText.substring(0, 15000)}
-        `;
+    तपाईं एक अनुभवी नेपाली कानूनी विशेषज्ञ हुनुहुन्छ। 
+    तल दिइएको कानूनी कागजातको मुख्य कुराहरू (Gist) बुँदागत रूपमा (Bullet Points) नेपालीमा लेख्नुहोस्।
 
-        const result = await model.generateContent(prompt);
+    नियमहरू (Strict Rules):
+    १. प्रत्येक बुँदा (Point) अनिवार्य रूपमा नयाँ लाइनमा हुनुपर्छ।
+    २. बुँदाहरू बीच एक खाली लाइन छोड्नुहोस्।
+    ३. ३-५ वटा मुख्य बुँदाहरू मात्र लेख्नुहोस्।
+    ४. सिधै बुँदाहरूबाट सुरु गर्नुहोस्, कुनै पनि भूमिका नलेख्नुहोस्।
+    
+    कागजातको पाठ: 
+    ${extractedText.substring(0, 15000)}
+`;
+
+        const result = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            ]
+        });
+        
         const summaryText = result.response.text();
 
-        // 6. Save to the 'summaries' table
-        // Ensure you have this table in your database with these columns
+        // 5. Save to DB
         await db.query(
-            'INSERT INTO summaries (case_id, document_id, summary_text) VALUES (?, ?, ?)',
-            [case_id, documentId, summaryText]
+            'INSERT INTO summaries (case_id, document_id, summary_text) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE summary_text = ?',
+            [case_id, documentId, summaryText, summaryText]
         );
 
-        // 7. Return the result
-        res.json({
-            success: true,
-            message: "Summary generated successfully.",
-            data: summaryText
-        });
+        res.json({ success: true, data: summaryText });
 
     } catch (error) {
         console.error("Summarization Error:", error);
-        res.status(500).json({ 
-            success: false, 
-            message: "An error occurred during AI processing.",
-            error: error.message 
-        });
+        res.status(500).json({ success: false, message: "AI Error: " + error.message });
     }
 });
 
