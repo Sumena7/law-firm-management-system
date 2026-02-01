@@ -16,27 +16,24 @@ function Login() {
     setLoading(true);
 
     try {
-      // 1. Attempt login
       const res = await api.post("/auth/login", { email, password });
       const { token, user } = res.data;
 
       if (token && user) {
-        // 2. Save credentials to localStorage
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
 
-        // 3. ROLE-BASED NAVIGATION
-        // This must match the routes defined in your App.jsx
+        // ROLE-BASED NAVIGATION - Updated to match new App.jsx routes
         if (user.role === 'lawyer') {
-          navigate("/lawyer/dashboard"); 
+          navigate("/lawyer-panel/dashboard"); 
         } else if (user.role === 'admin') {
-          navigate("/dashboard");
+          navigate("/admin/dashboard");
+        } else if (user.role === 'client') {
+          navigate("/client-panel/cases");
         } else {
-          // Fallback for clients or other roles
           navigate("/");
         }
 
-        // 4. Force a reload to ensure App.jsx re-reads the new localStorage data
         window.location.reload(); 
       }
     } catch (err) {
@@ -49,7 +46,7 @@ function Login() {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2 style={{ textAlign: "center", color: "var(--primary)" }}>JusticePanel</h2>
+        <h2 style={{ textAlign: "center", color: "var(--primary)" }}>Everest Law Chamber</h2>
         <p style={{ textAlign: "center", marginBottom: "20px", color: "#666" }}>
           Login to your account
         </p>

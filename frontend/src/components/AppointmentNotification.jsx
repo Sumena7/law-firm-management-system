@@ -30,7 +30,7 @@ const AppointmentNotification = () => {
     console.log("Navigating to /appointments");
     
     // Attempt standard navigation
-    navigate("/appointments");
+    navigate("/admin/appointments");
     
     // Fallback: If standard navigate fails (sometimes happens in complex layouts)
     // window.location.href = "/appointments"; 

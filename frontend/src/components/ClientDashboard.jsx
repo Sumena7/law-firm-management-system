@@ -11,11 +11,12 @@ function ClientDashboard() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/auth/login");
+    // Redirect to landing page on logout
+    navigate("/");
     window.location.reload();
   };
 
-  // Helper to highlight the active tab
+  // Helper to highlight the active tab - updated to match new paths
   const getNavClass = (path) => (location.pathname === path ? "active-link" : "");
 
   return (
@@ -29,22 +30,23 @@ function ClientDashboard() {
         
         <nav className="sidebar-nav">
           <ul>
-            <li className={getNavClass("/client/cases")}>
-              <Link to="/client/cases">⚖️ My Cases</Link>
+            {/* Updated paths to include /client-panel/ to match App.jsx */}
+            <li className={getNavClass("/client-panel/cases")}>
+              <Link to="/client-panel/cases">⚖️ My Cases</Link>
             </li>
-            <li className={getNavClass("/client/lawyers")}>
-  <Link to="/client/lawyers">🎓 Lawyer Profiles</Link>
-</li>
-            <li className={getNavClass("/client/appointments")}>
-              <Link to="/client/appointments">📅 My Appointments</Link>
+            <li className={getNavClass("/client-panel/lawyers")}>
+              <Link to="/client-panel/lawyers">🎓 Lawyer Profiles</Link>
             </li>
-            <li className={getNavClass("/client/documents")}>
-              <Link to="/client/documents">📄 My Documents</Link>
+            <li className={getNavClass("/client-panel/appointments")}>
+              <Link to="/client-panel/appointments">📅 My Appointments</Link>
+            </li>
+            <li className={getNavClass("/client-panel/documents")}>
+              <Link to="/client-panel/documents">📄 My Documents</Link>
             </li>
           </ul>
         </nav>
 
-        <div className="sidebar-footer">
+        <div className="sidebar-footer" style={{ marginTop: 'auto', padding: '20px' }}>
           <div style={{ padding: '10px', color: '#94a3b8', fontSize: '0.8rem' }}>
             Account: <span style={{ color: '#fff' }}>{user.name || "Client"}</span>
           </div>
@@ -56,14 +58,16 @@ function ClientDashboard() {
 
       {/* MAIN CONTENT */}
       <main className="main-content">
-        <header className="dashboard-header" style={{ marginBottom: '20px' }}>
-            <h1>Hello, {user.name?.split(' ')[0]}</h1>
-            <p>Access your case status, documents, and upcoming schedule.</p>
+        <header className="top-header" style={{ marginBottom: '20px', height: 'auto', padding: '20px 40px' }}>
+            <h1 style={{ margin: 0 }}>Hello, {user.name?.split(' ')[0]}</h1>
+            <p style={{ margin: 0, color: 'var(--text-muted)' }}>Access your case status, documents, and upcoming schedule.</p>
         </header>
 
         {/* This is where ClientCases, ClientAppointments, and ClientDocuments will render */}
-        <div className="container">
-          <Outlet />
+        <div className="content-padding">
+          <div className="container">
+            <Outlet />
+          </div>
         </div>
       </main>
     </div>

@@ -155,7 +155,7 @@ const LawyerCases = () => {
                             </label>
                             <button 
                               className="btn secondary small" 
-                              onClick={() => navigate("/lawyer/documents", { state: { filterCaseId: item.case_id } })}
+                              onClick={() => navigate("/lawyer-panel/documents", { state: { filterCaseId: item.case_id } })}
                             >
                               Files
                             </button>

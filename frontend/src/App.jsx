@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 // Auth pages
-import Login from "./components/Login";
+import Login from "./components/login";
 import Register from "./components/Register";
 import ForgotPassword from "./components/ForgotPassword";
 import ResetPassword from "./components/ResetPassword";
@@ -15,6 +15,7 @@ import Appointments from "./components/Appointment";
 import Billing from "./components/Billing";
 import UserManagement from "./components/UserManagement";
 import Overview from "./components/Overview"; 
+import LandingPage from "./components/LandingPage";
 
 // Layouts & Dashboards
 import AdminDashboard from "./components/AdminDashboard"; 
@@ -26,7 +27,6 @@ import LawyerCases from "./components/LawyerCases";
 import LawyerAppointments from "./components/LawyerAppointments";
 import LawyerClients from "./components/LawyerClients";
 import LawyerDocuments from "./components/LawyerDocuments";
-// Add this line with your other imports
 import LawyerOverview from "./components/LawyerOverview";
 
 // Client Components
@@ -49,26 +49,26 @@ function AppContent() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/auth/login");
-    // Force a reload only if you need to clear all internal React state
+    navigate("/"); // Redirect to landing page on logout
     window.location.reload(); 
   };
 
   return (
     <Routes>
-      {/* --- PUBLIC ROUTES --- */}
+      {/* --- 1. PUBLIC ROUTES (Accessible to everyone) --- */}
+      <Route path="/" element={<LandingPage />} /> 
       <Route path="/auth/login" element={<Login />} />
       <Route path="/auth/register" element={<Register />} />
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
       <Route path="/auth/reset-password" element={<ResetPassword />} />
 
-      {/* --- PROTECTED ROUTES --- */}
+      {/* --- 2. PROTECTED ROUTES (Requires Login) --- */}
       {isAuthenticated ? (
         <>
           {/* ADMIN FLOW */}
           {role === "admin" && (
-            <Route path="/" element={<AdminDashboard handleLogout={handleLogout} />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/admin" element={<AdminDashboard handleLogout={handleLogout} />}>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="dashboard" element={<Overview />} />
               <Route path="cases" element={<Cases />} />
               <Route path="clients" element={<Clients />} />
@@ -80,34 +80,35 @@ function AppContent() {
             </Route>
           )}
 
-        {/* LAWYER FLOW */}
-{role === "lawyer" && (
-  <Route path="/" element={<LawyerDashboard handleLogout={handleLogout} />}>
-    {/* When lawyer logs in, they go to /lawyer/dashboard */}
-    <Route index element={<Navigate to="/lawyer/dashboard" replace />} />
-    <Route path="lawyer/dashboard" element={<LawyerOverview />} />
-    <Route path="lawyer/cases" element={<LawyerCases />} />
-    <Route path="lawyer/appointments" element={<LawyerAppointments />} />
-    <Route path="lawyer/clients" element={<LawyerClients />} />
-    <Route path="lawyer/documents" element={<LawyerDocuments />} />
-  </Route>
-)}
-
-          {/* CLIENT FLOW */}
-          {role === "client" && (
-            <Route path="/" element={<ClientDashboard handleLogout={handleLogout} />}>
-              <Route index element={<Navigate to="/client/cases" replace />} />
-              <Route path="client/cases" element={<ClientCases />} />
-              <Route path="client/appointments" element={<ClientAppointments />} />
-              <Route path="client/documents" element={<ClientDocuments />} />
-              <Route path="client/lawyers" element={<LawyerDirectory />} />
+          {/* LAWYER FLOW */}
+          {role === "lawyer" && (
+            <Route path="/lawyer-panel" element={<LawyerDashboard handleLogout={handleLogout} />}>
+              <Route index element={<Navigate to="/lawyer-panel/dashboard" replace />} />
+              <Route path="dashboard" element={<LawyerOverview />} />
+              <Route path="cases" element={<LawyerCases />} />
+              <Route path="appointments" element={<LawyerAppointments />} />
+              <Route path="clients" element={<LawyerClients />} />
+              <Route path="documents" element={<LawyerDocuments />} />
             </Route>
           )}
 
-          <Route path="*" element={<Navigate to="/auth/login" replace />} />
+          {/* CLIENT FLOW */}
+          {role === "client" && (
+            <Route path="/client-panel" element={<ClientDashboard handleLogout={handleLogout} />}>
+              <Route index element={<Navigate to="/client-panel/cases" replace />} />
+              <Route path="cases" element={<ClientCases />} />
+              <Route path="appointments" element={<ClientAppointments />} />
+              <Route path="documents" element={<ClientDocuments />} />
+              <Route path="lawyers" element={<LawyerDirectory />} />
+            </Route>
+          )}
+
+          {/* Catch-all for logged in users: if page not found, go to landing */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </>
       ) : (
-        <Route path="*" element={<Navigate to="/auth/login" replace />} />
+        /* If NOT logged in and trying to access any dashboard, go to Landing Page */
+        <Route path="*" element={<Navigate to="/" replace />} />
       )}
     </Routes>
   );

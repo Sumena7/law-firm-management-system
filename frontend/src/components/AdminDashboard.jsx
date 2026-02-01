@@ -10,6 +10,12 @@ function AdminDashboard({ handleLogout }) {
   // Logic ported from your old DashboardLayout
   const isAdmin = user.role === 'admin' || user.role === 'staff';
 
+  // Helper function to clean up the breadcrumb text
+  const getBreadcrumbTitle = () => {
+    const path = location.pathname.split("/").pop(); // Gets the last part of the URL
+    return path === "admin" || path === "dashboard" ? "DASHBOARD" : path.toUpperCase();
+  };
+
   return (
     <div className="dashboard-wrapper">
       {/* SIDEBAR */}
@@ -22,16 +28,17 @@ function AdminDashboard({ handleLogout }) {
 
         <nav className="sidebar-nav">
           <ul>
-            <li><NavLink to="/dashboard" className={({isActive}) => isActive ? "active" : ""}>📊 Dashboard</NavLink></li>
-            <li><NavLink to="/lawyers" className={({isActive}) => isActive ? "active" : ""}>⚖️ Lawyers</NavLink></li>
-            <li><NavLink to="/clients" className={({isActive}) => isActive ? "active" : ""}>👥 Clients</NavLink></li>
-            <li><NavLink to="/cases" className={({isActive}) => isActive ? "active" : ""}>📂 Cases</NavLink></li>
-            <li><NavLink to="/appointments" className={({isActive}) => isActive ? "active" : ""}>📅 Appointments</NavLink></li>
-            <li><NavLink to="/invoices" className={({isActive}) => isActive ? "active" : ""}>💳 Billing</NavLink></li>
-            <li><NavLink to="/documents" className={({isActive}) => isActive ? "active" : ""}>📄 Documents</NavLink></li>
+            {/* All links updated to include /admin/ prefix to match App.jsx */}
+            <li><NavLink to="/admin/dashboard" className={({isActive}) => isActive ? "active" : ""}>📊 Dashboard</NavLink></li>
+            <li><NavLink to="/admin/lawyers" className={({isActive}) => isActive ? "active" : ""}>⚖️ Lawyers</NavLink></li>
+            <li><NavLink to="/admin/clients" className={({isActive}) => isActive ? "active" : ""}>👥 Clients</NavLink></li>
+            <li><NavLink to="/admin/cases" className={({isActive}) => isActive ? "active" : ""}>📂 Cases</NavLink></li>
+            <li><NavLink to="/admin/appointments" className={({isActive}) => isActive ? "active" : ""}>📅 Appointments</NavLink></li>
+            <li><NavLink to="/admin/invoices" className={({isActive}) => isActive ? "active" : ""}>💳 Billing</NavLink></li>
+            <li><NavLink to="/admin/documents" className={({isActive}) => isActive ? "active" : ""}>📄 Documents</NavLink></li>
             
             {isAdmin && (
-              <li><NavLink to="/admin/users" className={({isActive}) => isActive ? "active" : ""}>🛡️ Manage Users</NavLink></li>
+              <li><NavLink to="/admin/admin/users" className={({isActive}) => isActive ? "active" : ""}>🛡️ Manage Users</NavLink></li>
             )}
           </ul>
         </nav>
@@ -48,7 +55,7 @@ function AdminDashboard({ handleLogout }) {
         <header className="top-header">
           <div className="header-left">
             <div className="breadcrumb">
-              Admin / <strong>{location.pathname.replace("/", "").toUpperCase() || "DASHBOARD"}</strong>
+              Admin / <strong>{getBreadcrumbTitle()}</strong>
             </div>
           </div>
           

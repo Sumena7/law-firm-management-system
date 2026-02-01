@@ -14,6 +14,28 @@ function Register() {
     setError("");
     setSuccess("");
 
+    // --- Validation Logic ---
+    
+    // 1. Name Validation
+    if (formData.name.trim().length < 3) {
+      setError("Please enter your full name (minimum 3 characters).");
+      return;
+    }
+
+    // 2. Strict Gmail Validation (@gmail.com only)
+    const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
+    if (!gmailRegex.test(formData.email)) {
+      setError("Invalid email address");
+      return;
+    }
+
+    // 3. Password Validation
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    // --- API Call ---
     try {
       await api.post("/auth/register", formData);
       setSuccess("Account created! Redirecting to login...");
@@ -27,15 +49,37 @@ function Register() {
     <div className="auth-container">
       <div className="auth-card">
         <h2 style={{ textAlign: "center" }}>Create Account</h2>
+        
+        {/* Error and Success Messages */}
         {error && <p className="message error">{error}</p>}
         {success && <p className="message success">{success}</p>}
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "15px" }}>
-          <input type="text" placeholder="Full Name" required onChange={(e) => setFormData({...formData, name: e.target.value})} />
-          <input type="email" placeholder="Email" required onChange={(e) => setFormData({...formData, email: e.target.value})} />
-          <input type="password" placeholder="Password" required onChange={(e) => setFormData({...formData, password: e.target.value})} />
+          <input 
+            type="text" 
+            placeholder="Full Name" 
+            required 
+            onChange={(e) => setFormData({...formData, name: e.target.value})} 
+          />
           
-          <select onChange={(e) => setFormData({...formData, role: e.target.value})}>
+          <input 
+            type="email" 
+            placeholder="Email (e.g. user@gmail.com)" 
+            required 
+            onChange={(e) => setFormData({...formData, email: e.target.value})} 
+          />
+          
+          <input 
+            type="password" 
+            placeholder="Password" 
+            required 
+            onChange={(e) => setFormData({...formData, password: e.target.value})} 
+          />
+          
+          <select 
+            value={formData.role}
+            onChange={(e) => setFormData({...formData, role: e.target.value})}
+          >
             <option value="client">Client</option>
             <option value="lawyer">Lawyer</option>
           </select>
