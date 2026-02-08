@@ -21,7 +21,7 @@ const compressFile = async (filePath) => {
   }
 
   // ===============================
-  // PDF COMPRESSION (Ghostscript)
+  // PDF COMPRESSION 
   // ===============================
   if (ext === '.pdf') {
     const outputPath = filePath.replace('.pdf', '_compressed.pdf');

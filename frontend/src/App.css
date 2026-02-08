@@ -42,11 +42,10 @@ body {
   display: flex;
   flex-direction: column;
   z-index: 100;
-  /* FIX: Allow sidebar to scroll if items overflow */
   overflow-y: auto; 
 }
 
-/* Custom Scrollbar for Sidebar */
+
 .sidebar::-webkit-scrollbar {
   width: 4px;
 }
@@ -72,7 +71,7 @@ body {
 
 /* --- 4. NAVIGATION & ACTIVE STATE --- */
 .sidebar-nav {
-  flex: 1; /* Pushes the logout container to the bottom */
+  flex: 1; 
 }
 .sidebar-nav ul { list-style: none; padding: 0; margin: 0; }
 .sidebar-nav li { margin-bottom: 4px; border-radius: 8px; overflow: hidden; }
@@ -90,7 +89,7 @@ body {
 
 .sidebar-nav li:hover { background-color: var(--sidebar-active); }
 
-/* Support for NavLink active class */
+
 .sidebar-nav a.active { 
   background-color: var(--primary) !important; 
   color: white !important; 
@@ -171,7 +170,7 @@ input, select, textarea {
   transition: border-color 0.2s;
 }
 
-/* Update your CSS to this */
+
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
@@ -312,7 +311,7 @@ td {
   font-size: 0.95rem;
 }
 
-/* --- 11. RESPONSIVE FIX --- */
+
 @media (max-width: 1200px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -326,7 +325,7 @@ td {
   .form-grid { grid-template-columns: 1fr; }
 }
 
-/* This targets the specific class for excluded dates */
+
 .react-datepicker__day--disabled {
     background-color: #fee2e2 !important; /* Light red background */
     color: #ef4444 !important;            /* Red text */
@@ -335,7 +334,7 @@ td {
     opacity: 1 !important;
 }
 
-/* Optional: Make the red legend look nice */
+
 .legend-item {
     display: flex;
     align-items: center;
@@ -352,7 +351,7 @@ td {
 
 /* --- 12. LANDING PAGE (PUBLIC) --- */
 .lp-container {
-  background-color: #FDF9F3; /* Keeping the cream for that 'Law' feel */
+  background-color: #FDF9F3; 
   min-height: 100vh;
   font-family: 'Inter', sans-serif;
   color: var(--text-main);
@@ -387,7 +386,7 @@ td {
 }
 
 .lp-login-btn {
-  background-color: #D2B48C; /* Tan color from your image */
+  background-color: #D2B48C; 
   color: white !important;
   padding: 8px 20px;
   border-radius: 6px;
@@ -489,7 +488,7 @@ td {
   max-width: 500px;
   border-radius: 12px;
   border: 10px solid white;
-  box-shadow: 20px 20px 0px #D2B48C; /* Tan square shadow from your image */
+  box-shadow: 20px 20px 0px #D2B48C; 
 }
 
 /* Responsive Landing Page */
@@ -523,7 +522,7 @@ body {
   background-color: #ffffff;
 }
 
-/* Nav Fix */
+
 .lp-nav {
   position: fixed;
   top: 0; width: 100%;
@@ -565,27 +564,26 @@ body {
   gap: 25px; margin: 40px 0;
 }
 
-/* Update these specific classes in your App.css */
+
 
 .service-card {
   padding: 30px;
-  background: #0f172a; /* The Dark Navy from the first box */
-  color: #ffffff;      /* White text for readability */
+  background: #0f172a; 
+  color: #ffffff;      
   border: 1px solid #1e293b;
   border-radius: 12px;
   transition: all 0.3s ease;
-  text-align: left;    /* Professional alignment */
+  text-align: left;   
 }
 
 .service-card h3 {
-  color: #c5a059;      /* The Gold color for titles */
+  color: #c5a059;      
   margin-bottom: 15px;
   font-size: 1.4rem;
 }
 
 .service-card p {
-  color: #cbd5e1;      /* Softer gray-white for the description */
-  line-height: 1.6;
+  color: #cbd5e1;      
   font-size: 0.95rem;
 }
 
@@ -595,7 +593,7 @@ body {
   display: block;
 }
 
-/* Hover effect to make it feel interactive */
+
 .service-card:hover {
   transform: translateY(-10px);
   border-color: #c5a059;

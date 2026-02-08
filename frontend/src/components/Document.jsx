@@ -169,7 +169,7 @@ function Document() {
               <button className="btn danger small" onClick={closePreview}>Close</button>
             </div>
             <div className="modal-body" style={{ height: "80vh", padding: "0" }}>
-              {/* Use Object tag for better PDF rendering via Blob URLs */}
+              {}
               <object
                 data={previewUrl}
                 type={previewType}

@@ -38,14 +38,13 @@ router.post('/create-staff', verifyToken, allowRoles('admin'), async (req, res) 
         // 1. Hash the temporary password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // 2. Insert into the 'users' table (For Authentication)
+       
         await db.query(
             'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
             [name, email, hashedPassword, 'staff']
         );
 
-        // 3. Insert into the 'staffs' table (For Profile & Status)
-        // This fixes the "profile no longer active" error
+        
         await db.query(
             'INSERT INTO staffs (name, email, created_at) VALUES (?, ?, NOW())',
             [name, email]

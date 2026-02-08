@@ -55,7 +55,7 @@ function Lawyer() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Prepare data: Convert array of days to string for the backend
+    
     const payload = {
       ...formData,
       work_days: selectedDays.join(", ")
@@ -138,7 +138,7 @@ function Lawyer() {
               style={{...highVisibilityStyle, border: '2px solid #2563eb'}} 
             />
 
-            {/* NEW: Working Days Checkboxes */}
+            {}
             <div className="form-group" style={{ gridColumn: "span 2", margin: "10px 0" }}>
               <label style={{ fontWeight: '700', marginBottom: '5px', display: 'block' }}>Working Days:</label>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -209,10 +209,9 @@ function Lawyer() {
         available_hours: lawyer.available_hours || ""
     });
 
-    // 2. FIX: Completely overwrite selectedDays. 
-    // Do not use [...prev]. We want to start fresh with ONLY what is in the DB.
+    
     if (lawyer.work_days) {
-        // This splits the string and removes extra spaces/duplicates
+      
         const cleanDays = lawyer.work_days
             .split(",")
             .map(d => d.trim())
@@ -220,7 +219,7 @@ function Lawyer() {
         
         setSelectedDays(cleanDays);
     } else {
-        setSelectedDays([]); // If no days exist, start empty
+        setSelectedDays([]); 
     }
 
     setEditingId(lawyer.id);

@@ -16,13 +16,12 @@ router.get('/dashboard-summary', async (req, res) => {
             return ""; // All Time
         };
 
-        // Apply filters only to tables that definitely have timestamps
-        // Adjust the column names (created_at vs issued_date) to match your DB
+
         const casesQuery = `SELECT COUNT(*) as count FROM cases ${getFilter('created_at')}`;
         const appointmentsQuery = `SELECT COUNT(*) as count FROM appointments ${getFilter('appointment_date')}`;
         const billingQuery = `SELECT COUNT(*) as count FROM invoices ${getFilter('created_at')}`;
         
-        // Tables that usually don't need time-slicing (showing total counts)
+        
         const clientsQuery = "SELECT COUNT(*) as count FROM clients";
         const lawyersQuery = "SELECT COUNT(*) as count FROM lawyers";
         const documentsQuery = "SELECT COUNT(*) as count FROM documents";
@@ -46,7 +45,7 @@ router.get('/dashboard-summary', async (req, res) => {
             }
         });
     } catch (err) {
-        // This will print the EXACT SQL error in your terminal
+      
         console.error("STATS ROUTE CRASHED:", err.message);
         res.status(500).json({ success: false, message: "Database Error" });
     }

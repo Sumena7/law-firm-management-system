@@ -22,7 +22,7 @@ function Register() {
       return;
     }
 
-    // 2. Strict Gmail Validation (@gmail.com only)
+    
     const gmailRegex = /^[a-zA-Z0-9._%+-]+@gmail\.com$/;
     if (!gmailRegex.test(formData.email)) {
       setError("Invalid email address");

@@ -7,7 +7,6 @@ const { findSimilarCases } = require('../utils/caseSearch'); // AI Similarity To
 
 // ------------------------------------------------------------------
 // 1. GET CASES BY LAWYER (USER ID)
-// Updated to include 'category' in the selection
 // ------------------------------------------------------------------
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
     const { userId } = req.params;
@@ -85,7 +84,6 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
 
 // ------------------------------------------------------------------
 // 4. CREATE NEW CASE
-// Updated to accept and save 'category'
 // ------------------------------------------------------------------
 router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     const { title, description, status, client_id, assigned_lawyer_id, category } = req.body;
@@ -110,7 +108,6 @@ router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => 
 
 // ------------------------------------------------------------------
 // 5. UPDATE CASE
-// Updated to allow updating the category
 // ------------------------------------------------------------------
 router.put('/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
     const { id } = req.params;
@@ -156,7 +153,6 @@ router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
 
 // ------------------------------------------------------------------
 // 7. GET CLIENT CASES
-// Updated to include 'category' for client view
 // ------------------------------------------------------------------
 router.get('/client/:userId', verifyToken, allowRoles('admin', 'client'), async (req, res) => {
     const { userId } = req.params;

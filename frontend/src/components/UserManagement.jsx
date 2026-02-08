@@ -15,7 +15,7 @@ function UserManagement() {
     WebkitTextFillColor: 'black'
   };
 
-  // Handle Staff Creation (Option 1)
+  // Handle Staff Creation 
   const handleCreateStaff = async (e) => {
     e.preventDefault();
     try {
@@ -27,7 +27,7 @@ function UserManagement() {
     }
   };
 
-  // Handle Lawyer Authorization (Existing Logic)
+  // Handle Lawyer Authorization
   const handleAuthorizeLawyer = async (e) => {
     e.preventDefault();
     try {

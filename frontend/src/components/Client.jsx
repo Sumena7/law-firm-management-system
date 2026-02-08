@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "../api";
 import "../App.css";
-// Import SweetAlert2
 import Swal from "sweetalert2";
 
 function Client() {

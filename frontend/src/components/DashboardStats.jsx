@@ -14,7 +14,6 @@ const DashboardStats = () => {
   const [timeframe, setTimeframe] = useState("All Time");
 
   const fetchStats = (period) => {
-    // 2. We pass the timeframe as a query parameter to your API
     fetch(`http://localhost:3000/api/dashboard-summary/dashboard-summary?period=${period}`)
       .then((res) => res.json())
       .then((result) => {

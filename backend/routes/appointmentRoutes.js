@@ -46,7 +46,7 @@ router.get('/pending-count', verifyToken, allowRoles('admin', 'staff'), async (r
     }
 });
 
-// --- 4. LIST APPOINTMENTS (Updated with Emails) ---
+// --- 4. LIST APPOINTMENTS ---
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     try {
         const query = `
@@ -109,7 +109,7 @@ router.post('/', verifyToken, allowRoles('admin', 'staff', 'client'), upload.sin
     } catch (err) { res.status(500).json({ success: false, message: 'Database error' }); }
 });
 
-// --- 6. UPDATE APPOINTMENT (Updated with Emails) ---
+// --- 6. UPDATE APPOINTMENT  ---
 router.put('/:id', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     const { id } = req.params;
     let { assigned_lawyer_id, status, appointment_date, purpose, case_id } = req.body;
@@ -158,7 +158,7 @@ router.put('/:id', verifyToken, allowRoles('admin', 'staff'), async (req, res) =
     } catch (err) { res.status(500).json({ success: false, message: 'Update failed' }); }
 });
 
-// --- 7. DELETE / 8. VIEWS / 9. SLOTS (Remain Same as previous working version) ---
+
 router.delete('/:id', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     const { id } = req.params;
     try {

@@ -21,7 +21,6 @@ router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => 
     const invoiceStatus = status || 'Pending';
 
     try {
-        // 1. Insert invoice into DB (Handles NULL for case_id or appointment_id)
         const [results] = await db.query(
             `INSERT INTO invoices (case_id, appointment_id, amount, issued_date, due_date, status, created_at)
              VALUES (?, ?, ?, ?, ?, ?, NOW())`,
@@ -33,7 +32,7 @@ router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => 
 
         // 2. RECIPIENT LOOKUP LOGIC
         if (case_id) {
-            // Standard Case -> Client lookup
+            
             const [rows] = await db.query(`
                 SELECT c.name, c.email FROM cases ca
                 JOIN clients c ON ca.client_id = c.id
@@ -46,7 +45,7 @@ router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => 
             if (appt.length > 0) {
                 const targetId = appt[0].client_id;
 
-                // Attempt to find in Users table (e.g., User: 29)
+               
                 const [userRows] = await db.query(`SELECT name, email FROM users WHERE id = ?`, [targetId]);
                 
                 if (userRows.length > 0 && userRows[0].email) {

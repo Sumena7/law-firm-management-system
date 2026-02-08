@@ -97,17 +97,17 @@ const LawyerCases = () => {
           </div>
 
           <div className="form-actions">
-             <button 
-                className="btn primary small" 
-                onClick={() => navigate("/lawyer/documents", { state: { filterCaseId: selectedCase.case_id } })}
-              >
-                Go to Case Files
-              </button>
+            <button 
+              className="btn primary small" 
+              onClick={() => navigate("/lawyer/documents", { state: { filterCaseId: selectedCase.case_id } })}
+            >
+              Go to Case Files
+            </button>
           </div>
         </div>
       ) : (
         /* --- MAIN TABLE VIEW --- */
-        <>
+        <div>
           <div style={{ marginBottom: '20px' }}>
             <h3 style={{ margin: 0 }}>📂 My Active Caseload</h3>
             <p style={{ color: '#64748b', fontSize: '0.85rem' }}>Manage your assigned cases and upload evidence.</p>
@@ -121,7 +121,7 @@ const LawyerCases = () => {
                 <thead>
                   <tr>
                     <th>Case ID</th>
-                    <th>Category</th> {/* ✅ Added Column */}
+                    <th>Category</th>
                     <th>Title (Click to view)</th>
                     <th>Client Name</th>
                     <th>Status</th>
@@ -133,7 +133,6 @@ const LawyerCases = () => {
                     cases.map((item) => (
                       <tr key={item.case_id} className="row-hover">
                         <td><span className="text-bold"># {item.case_id}</span></td>
-                        {/* ✅ Category Badge */}
                         <td>
                           <span className="badge-outline" style={{ fontSize: '0.75rem' }}>
                             {item.category || "General"}
@@ -165,14 +164,14 @@ const LawyerCases = () => {
                     ))
                   ) : (
                     <tr>
-                        <td colSpan="6" style={{textAlign: 'center', padding: '30px'}}>No cases assigned yet.</td>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '30px' }}>No cases assigned yet.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

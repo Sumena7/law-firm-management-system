@@ -17,7 +17,7 @@ router.post('/register', async (req, res) => {
     // Default role to 'client' (outsider)
     role = role || 'client';
 
-    // 🔧 Normalize inputs (CRITICAL)
+   
     email = email?.trim().toLowerCase();
     name = name?.trim();
 
@@ -79,7 +79,7 @@ router.post('/register', async (req, res) => {
             [name, email, hashedPassword, role]
         );
 
-        // 🧪 DEBUG PROOF (DO NOT REMOVE)
+        // 🧪 DEBUG PROOF 
         console.log('✅ USER INSERTED');
         console.log('➡️ Insert ID:', result.insertId);
         console.log('➡️ Email:', email);
@@ -116,7 +116,7 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ message: 'Invalid email or password' });
         }
 
-        // 4️⃣ OPTIONAL: Active Status Check
+       
         // If an employee is removed from the lawyer/staff table, they shouldn't be able to log in
         if (user.role === 'lawyer') {
             const [lawyer] = await db.query('SELECT id FROM lawyers WHERE email = ?', [email]);
@@ -160,8 +160,7 @@ router.post('/forgot-password', async (req, res) => {
     let { email } = req.body;
     if (!email) return res.status(400).json({ message: 'Email is required' });
 
-    // Trim the email to avoid extra spaces
-    email = email.trim();
+    email = email.trim().toLowerCase();
 
     // Find user by email
     const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
@@ -171,13 +170,9 @@ router.post('/forgot-password', async (req, res) => {
     }
 
     const user = users[0];
-    if (!user.email) {
-      console.error('User has no email in database:', user);
-      return res.status(500).json({ message: 'Email missing for user' });
-    }
 
-    // Generate a random token
-    const token = crypto.randomBytes(20).toString('hex');
+    // Generate a secure random token
+    const token = crypto.randomBytes(32).toString('hex');
 
     // Set expiry (15 minutes from now)
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
@@ -188,25 +183,28 @@ router.post('/forgot-password', async (req, res) => {
       [token, expiry, email]
     );
 
-    // Build reset link
-    const resetLink = `http://localhost:5173/reset-password?token=${token}`;
+    // Use environment variable for frontend URL
+    const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetLink = `${FRONTEND_URL}/auth/reset-password?token=${token}`;
 
     console.log(`Sending reset email to: ${user.email}`);
     console.log(`Reset link: ${resetLink}`);
 
-    // Send actual email using your existing utility
+    // Send the email
     await sendEmail({
-      to: user.email.trim(), // ensure no spaces
+      to: user.email,
       subject: 'Password Reset Request',
-      text: `Hello ${user.name},\n\nYou requested a password reset. Click the link below to reset your password:\n\n${resetLink}\n\nThis link will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.`,
+      text: `Hello ${user.name},\n\nYou requested a password reset. Click the link below to reset your password:\n\n${resetLink}\n\nThis link will expire in 15 minutes.\n\nIf you did not request this, please ignore this email.`
     });
 
     res.json({ message: 'Reset link sent to your email!' });
+
   } catch (err) {
     console.error('Forgot password error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // ---------------- RESET PASSWORD ----------------
 router.post('/reset-password', async (req, res) => {

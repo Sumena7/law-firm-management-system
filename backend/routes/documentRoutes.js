@@ -144,26 +144,35 @@ router.get('/download/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'),
   }
 });
 
-// PREVIEW SINGLE FILE - FIXED WITH SEND_FILE
+// PREVIEW SINGLE FILE - FIXED
 router.get('/preview/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
   const { id } = req.params;
   try {
     const [results] = await db.query('SELECT file_path, file_type FROM documents WHERE id = ?', [id]);
-    if (!results.length) return res.status(404).json({ success: false, message: 'File not found' });
+    
+    if (!results.length) {
+      return res.status(404).json({ success: false, message: 'File record not found in database' });
+    }
 
     const { file_path, file_type } = results[0];
     
-    if (!fs.existsSync(file_path)) return res.status(404).json({ success: false, message: 'File missing' });
+    // Check if file actually exists on the hard drive
+    if (!fs.existsSync(file_path)) {
+      return res.status(404).json({ success: false, message: 'File missing on server storage' });
+    }
 
-    // Explicitly set headers for browser viewing
+    // --- THE FIX IS HERE ---
+    // 1. Set the correct content type (e.g., application/pdf)
     res.setHeader('Content-Type', file_type);
+    
+    // 2. 'inline' tells the browser to try and show it, not download it
     res.setHeader('Content-Disposition', 'inline');
 
-    // sendFile is more stable than createReadStream for browser PDF readers
-    res.sendFile(file_path);
+    // 3. Send the actual file data
+    res.sendFile(path.resolve(file_path)); 
 
   } catch (err) {
-    console.error(err);
+    console.error("Backend Preview Error:", err);
     res.status(500).json({ success: false, message: 'Preview error' });
   }
 });

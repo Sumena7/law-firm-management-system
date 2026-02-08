@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET; // must match the secret in authRoutes.js
+const JWT_SECRET = process.env.JWT_SECRET; 
 
 /**
  * Middleware to verify JWT token and attach user info to req.user
@@ -18,12 +18,11 @@ function verifyToken(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET); // Verify token
 
-        // Attach payload to req.user
-        // Make sure decoded includes: id, role, email
+        
         req.user = {
             id: decoded.id,
             role: decoded.role,
-            email: decoded.email // email must be included in JWT when signing
+            email: decoded.email
         };
 
         next();

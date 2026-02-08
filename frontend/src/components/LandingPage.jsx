@@ -38,7 +38,7 @@ function LandingPage() {
         </div>
       </header>
 
-      {/* About Us Section - Simplified but Substantial */}
+      {/* About Us Section - */}
       <section id="about" className="lp-section about-section">
         <div className="section-container">
           <label className="gold-label">THE CHAMBER</label>
@@ -61,7 +61,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Services Section - All Dark Boxes */}
+      {/* Services Section  */}
       <section id="services" className="lp-section services-section">
         <div className="section-container">
           <label className="gold-label">OUR SPECIALIZATIONS</label>

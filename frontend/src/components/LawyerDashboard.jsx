@@ -5,7 +5,7 @@ function LawyerDashboard({ handleLogout }) {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-  // Helper to clean up the breadcrumb/title if you want to add one later
+  
   const getPageTitle = () => {
     const path = location.pathname.split("/").pop();
     return path === "lawyer-panel" || path === "dashboard" ? "OVERVIEW" : path.toUpperCase();
@@ -22,7 +22,7 @@ function LawyerDashboard({ handleLogout }) {
         
         <nav className="sidebar-nav">
           <ul>
-            {/* All links updated to include /lawyer-panel/ to match App.jsx */}
+            {}
             <li><NavLink to="/lawyer-panel/dashboard" className={({isActive}) => isActive ? "active" : ""}>📊 Overview</NavLink></li>
             <li><NavLink to="/lawyer-panel/cases" className={({isActive}) => isActive ? "active" : ""}>📂 My Cases</NavLink></li>
             <li><NavLink to="/lawyer-panel/appointments" className={({isActive}) => isActive ? "active" : ""}>📅 My Schedule</NavLink></li>
@@ -42,14 +42,14 @@ function LawyerDashboard({ handleLogout }) {
       </aside>
 
       <main className="main-content">
-        {/* Added a header to match the Admin and Client layout style */}
+        {}
         <header className="top-header" style={{ marginBottom: '20px', padding: '0 40px', display: 'flex', alignItems: 'center' }}>
             <h3>Lawyer / <span style={{ color: 'var(--primary)' }}>{getPageTitle()}</span></h3>
         </header>
 
         <div className="content-padding">
           <div className="container">
-            {/* This Outlet handles showing LawyerOverview, LawyerCases, etc. */}
+            {}
             <Outlet /> 
           </div>
         </div>

@@ -3,12 +3,9 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * ✅ FORCING JSON OUTPUT (Structured Outputs)
- * This eliminates the need for indexOf('[') or regex.
- */
+
 const model = genAI.getGenerativeModel({ 
-model: "gemini-2.5-flash-lite", // or gemini-2.5-flash-lite if available
+model: "gemini-2.5-flash-lite",
   generationConfig: { 
     responseMimeType: "application/json" 
   } 
@@ -45,12 +42,11 @@ async function findSimilarCases(caseId, title, description, limit = 5) {
     const result = await model.generateContent(prompt);
     const response = await result.response;
     
-    // ✅ With responseMimeType, response.text() is guaranteed clean JSON
+    
     let aiResults = JSON.parse(response.text());
 
     if (!Array.isArray(aiResults)) return [];
 
-    // ✅ Match IDs and ensure they are numbers
     const aiMatches = aiResults.map(r => ({
       id: Number(r.id),
       similarity: Number(r.similarity) || 0
@@ -59,17 +55,13 @@ async function findSimilarCases(caseId, title, description, limit = 5) {
     const ids = aiMatches.map(r => r.id);
     if (!ids.length) return [];
 
-    // Fetch full data for the matched IDs
+
     const [cases] = await db.query(
       `SELECT * FROM cases WHERE id IN (${ids.map(() => '?').join(',')})`,
       ids
     );
 
-    /**
-     * ✅ RAISED THRESHOLD
-     * Setting this to 0.7 ensures that your "60%" matches are filtered out
-     * and only high-relevance cases remain.
-     */
+   
     const MIN_SIMILARITY = 0.7;
 
     const merged = cases.map(c => {

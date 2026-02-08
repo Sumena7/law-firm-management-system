@@ -23,7 +23,7 @@ function Login() {
         localStorage.setItem("token", token);
         localStorage.setItem("user", JSON.stringify(user));
 
-        // ROLE-BASED NAVIGATION - Updated to match new App.jsx routes
+        
         if (user.role === 'lawyer') {
           navigate("/lawyer-panel/dashboard"); 
         } else if (user.role === 'admin') {

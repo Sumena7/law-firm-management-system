@@ -14,7 +14,7 @@ const LawyerStats = () => {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // This must match the backend route we discussed
+       
         const res = await api.get(`/lawyers/${user.id}/stats`);
         if (res.data.success) {
           setStats(res.data.data);

@@ -40,8 +40,7 @@ router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff')
 });
 
 /**
- * 2. GET PUBLIC LAWYER PROFILES (For Clients)
- */
+
 /**
  * 2. GET PUBLIC LAWYER PROFILES (For Clients)
  */
@@ -88,10 +87,9 @@ router.get('/:id', verifyToken, async (req, res) => {
 
 /**
  * 5. A/**
- * 5. ADD NEW LAWYER (Updated with work_days)
+ * 5. ADD NEW LAWYER 
  */
 router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
-    // Added work_days to destructuring
     const { name, email, phone, specialization, experience, address, bio, available_hours, work_days } = req.body;
     try {
         const [results] = await db.query(
@@ -117,7 +115,7 @@ router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
 });
 
 /**
- * 6. UPDATE LAWYER (Updated with work_days)
+ * 6. UPDATE LAWYER 
  */
 router.put('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;

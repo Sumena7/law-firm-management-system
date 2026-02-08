@@ -35,7 +35,7 @@ import ClientCases from "./components/ClientCases";
 import ClientDocuments from "./components/ClientDocuments";
 import LawyerDirectory from "./components/LawyerDirectory";
 
-// Sub-component to handle routing logic and hooks
+
 function AppContent() {
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
@@ -107,7 +107,7 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </>
       ) : (
-        /* If NOT logged in and trying to access any dashboard, go to Landing Page */
+        
         <Route path="*" element={<Navigate to="/" replace />} />
       )}
     </Routes>

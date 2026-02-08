@@ -16,7 +16,6 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
 });
 
 //----------- NEW: Get clients for a Specific Lawyer (Dashboard) -----------------//
-// Fixes 403/404: /api/clients/lawyer/22
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
     const { userId } = req.params;
 
@@ -46,7 +45,6 @@ router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async 
         
         const [results] = await db.query(query, [realLawyerId]);
         
-        // Return in standardized format for React
         res.json({ success: true, data: results }); 
     } catch (err) {
         console.error('Error fetching lawyer clients:', err);

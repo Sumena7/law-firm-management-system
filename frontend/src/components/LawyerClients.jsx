@@ -10,7 +10,7 @@ const LawyerClients = () => {
     const fetchClients = async () => {
       try {
         setLoading(true);
-        // Ensure this endpoint matches your backend route exactly
+       
         const res = await api.get(`/clients/lawyer/${user.id}`); 
         if (res.data.success) setClients(res.data.data);
       } catch (err) { 
@@ -27,7 +27,7 @@ const LawyerClients = () => {
     const subject = encodeURIComponent(`Legal Consultation: Everest Law Chamber`);
     const body = encodeURIComponent(`Dear ${clientName},\n\nI am contacting you regarding your ongoing case...`);
     
-    // This opens the lawyer's default email app
+    
     window.location.href = `mailto:${clientEmail}?subject=${subject}&body=${body}`;
   };
 

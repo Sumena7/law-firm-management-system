@@ -7,12 +7,12 @@ function AdminDashboard({ handleLogout }) {
   const location = useLocation();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   
-  // Logic ported from your old DashboardLayout
+  
   const isAdmin = user.role === 'admin' || user.role === 'staff';
 
-  // Helper function to clean up the breadcrumb text
+ 
   const getBreadcrumbTitle = () => {
-    const path = location.pathname.split("/").pop(); // Gets the last part of the URL
+    const path = location.pathname.split("/").pop(); 
     return path === "admin" || path === "dashboard" ? "DASHBOARD" : path.toUpperCase();
   };
 
@@ -28,7 +28,7 @@ function AdminDashboard({ handleLogout }) {
 
         <nav className="sidebar-nav">
           <ul>
-            {/* All links updated to include /admin/ prefix to match App.jsx */}
+            {}
             <li><NavLink to="/admin/dashboard" className={({isActive}) => isActive ? "active" : ""}>📊 Dashboard</NavLink></li>
             <li><NavLink to="/admin/lawyers" className={({isActive}) => isActive ? "active" : ""}>⚖️ Lawyers</NavLink></li>
             <li><NavLink to="/admin/clients" className={({isActive}) => isActive ? "active" : ""}>👥 Clients</NavLink></li>
@@ -76,7 +76,7 @@ function AdminDashboard({ handleLogout }) {
 
         <div className="content-padding">
            <div className="container">
-              {/* This is where your Overview stats or page content loads */}
+              {}
               <Outlet />
            </div>
         </div>

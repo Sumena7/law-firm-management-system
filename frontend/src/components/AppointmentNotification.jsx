@@ -24,16 +24,14 @@ const AppointmentNotification = () => {
   }, []);
 
   const handleClick = (e) => {
-    e.preventDefault(); // Stop default browser behavior
-    e.stopPropagation(); // Stop event bubbling
+    e.preventDefault(); 
+    e.stopPropagation(); 
     
     console.log("Navigating to /appointments");
     
-    // Attempt standard navigation
     navigate("/admin/appointments");
     
-    // Fallback: If standard navigate fails (sometimes happens in complex layouts)
-    // window.location.href = "/appointments"; 
+   
   };
 
   if (count === 0) return null;

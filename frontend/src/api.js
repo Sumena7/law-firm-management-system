@@ -21,17 +21,16 @@ api.interceptors.request.use(
 
 // 2. Response Interceptor (Handles expired tokens)
 api.interceptors.response.use(
-  (response) => response, // If the request succeeds, do nothing
+  (response) => response, 
   (error) => {
-    // Check if the error is 401 (Unauthorized) 
-    // or if the backend sends a 500 because req.user was missing
-    if (error.response && (error.response.status === 401)) {
+  
+    const isAuthRoute = error.config.url.includes("/auth/");
+
+    if (error.response && error.response.status === 401 && !isAuthRoute) {
       alert("Your session has expired. Please log in again.");
       
-      localStorage.removeItem("token");
-      localStorage.removeItem("role"); // If you store role there too
-      
-      window.location.href = "/login"; 
+      localStorage.clear(); 
+      window.location.href = "/auth/login"; 
     }
     return Promise.reject(error);
   }
