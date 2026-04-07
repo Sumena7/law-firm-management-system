@@ -4,9 +4,9 @@ const db = require('../db');
 const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
 
-/**
- * 1. LAWYER DASHBOARD STATS
- */
+
+ //LAWYER DASHBOARD STATS
+
 router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff'), async (req, res) => {
     const { userId } = req.params;
     try {
@@ -39,14 +39,14 @@ router.get('/:userId/stats', verifyToken, allowRoles('lawyer', 'admin', 'staff')
     }
 });
 
-/**
 
-/**
- * 2. GET PUBLIC LAWYER PROFILES (For Clients)
- */
+
+
+  //GET PUBLIC LAWYER PROFILES (For Clients)
+ 
 router.get('/public/list', verifyToken, async (req, res) => {
     try {
-        // ✅ CRITICAL UPDATE: Added work_days to the SELECT statement
+        
         const query = `
             SELECT id, name, specialization, experience, bio, address, phone, available_hours, work_days 
             FROM lawyers
@@ -59,9 +59,8 @@ router.get('/public/list', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * 3. GET ALL LAWYERS (Admin/Staff Only)
- */
+//GET ALL LAWYERS (Admin/Staff Only)
+
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     try {
         const [results] = await db.query('SELECT * FROM lawyers');
@@ -71,9 +70,8 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     }
 });
 
-/**
- * 4. GET LAWYER BY ID
- */
+// GET LAWYER BY ID
+ 
 router.get('/:id', verifyToken, async (req, res) => {
     const { id } = req.params;
     try {
@@ -85,10 +83,8 @@ router.get('/:id', verifyToken, async (req, res) => {
     }
 });
 
-/**
- * 5. A/**
- * 5. ADD NEW LAWYER 
- */
+ //ADD NEW LAWYER 
+ 
 router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
     const { name, email, phone, specialization, experience, address, bio, available_hours, work_days } = req.body;
     try {
@@ -114,9 +110,8 @@ router.post('/', verifyToken, allowRoles('admin'), async (req, res) => {
     }
 });
 
-/**
- * 6. UPDATE LAWYER 
- */
+// UPDATE LAWYER 
+
 router.put('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;
     const { name, email, phone, specialization, experience, address, bio, available_hours, work_days } = req.body;
@@ -155,9 +150,8 @@ router.put('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
         res.status(500).json({ success: false, message: 'Error updating lawyer' });
     }
 });
-/**
- * 7. DELETE LAWYER
- */
+//DELETE LAWYER
+ 
 router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;
     try {

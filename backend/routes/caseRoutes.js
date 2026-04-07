@@ -5,9 +5,9 @@ const { verifyToken } = require('../middleware/authMiddleware');
 const { allowRoles } = require('../middleware/roleMiddleware');
 const { findSimilarCases } = require('../utils/caseSearch'); // AI Similarity Tool
 
-// ------------------------------------------------------------------
+
 // 1. GET CASES BY LAWYER (USER ID)
-// ------------------------------------------------------------------
+
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
     const { userId } = req.params;
     try {
@@ -35,9 +35,9 @@ router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async 
     }
 });
 
-// ------------------------------------------------------------------
+
 // 2. GET SINGLE CASE BY ID (With AI Similarity)
-// ------------------------------------------------------------------
+
 router.get('/:id', verifyToken, allowRoles('admin', 'client', 'lawyer'), async (req, res) => {
     const { id } = req.params;
     try {
@@ -69,9 +69,9 @@ router.get('/:id', verifyToken, allowRoles('admin', 'client', 'lawyer'), async (
     }
 });
 
-// ------------------------------------------------------------------
+
 // 3. GET ALL CASES (Admin / Staff Only)
-// ------------------------------------------------------------------
+
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     try {
         // Using SELECT * will automatically include the new category column
@@ -82,9 +82,9 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     }
 });
 
-// ------------------------------------------------------------------
+
 // 4. CREATE NEW CASE
-// ------------------------------------------------------------------
+
 router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     const { title, description, status, client_id, assigned_lawyer_id, category } = req.body;
     try {
@@ -106,9 +106,9 @@ router.post('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => 
     }
 });
 
-// ------------------------------------------------------------------
+
 // 5. UPDATE CASE
-// ------------------------------------------------------------------
+
 router.put('/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
     const { id } = req.params;
     const { title, description, status, client_id, assigned_lawyer_id, category } = req.body;
@@ -138,9 +138,9 @@ router.put('/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (r
     }
 });
 
-// ------------------------------------------------------------------
+
 // 6. DELETE CASE
-// ------------------------------------------------------------------
+
 router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     const { id } = req.params;
     try {
@@ -151,9 +151,9 @@ router.delete('/:id', verifyToken, allowRoles('admin'), async (req, res) => {
     }
 });
 
-// ------------------------------------------------------------------
+
 // 7. GET CLIENT CASES
-// ------------------------------------------------------------------
+
 router.get('/client/:userId', verifyToken, allowRoles('admin', 'client'), async (req, res) => {
     const { userId } = req.params;
     

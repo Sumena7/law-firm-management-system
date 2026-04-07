@@ -14,7 +14,7 @@ const { sendEmail } = require('../utils/notification');
 router.post('/authorize-lawyer', verifyToken, allowRoles('admin'), async (req, res) => {
     const { name, email, specialization } = req.body;
     try {
-        // Pre-create the lawyer profile. Status is 'Pending' until they register their user account.
+  
         await db.query(
             'INSERT INTO lawyers (name, email, specialization, status) VALUES (?, ?, ?, ?)',
             [name, email, specialization, 'Pending']
@@ -50,7 +50,7 @@ router.post('/create-staff', verifyToken, allowRoles('admin'), async (req, res) 
             [name, email]
         );
 
-        // 4. Prepare the welcome email content
+    
         const emailContent = `
 Hello ${name},
 
@@ -64,7 +64,7 @@ Temporary Password: ${password}
 Please log in and change your password immediately from your profile settings.
 
 Best regards,
-JusticePanel Administration
+Everest Law Chamber Administration
         `;
 
         // 5. Send the email

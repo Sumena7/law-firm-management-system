@@ -13,7 +13,7 @@ router.get('/dashboard-summary', async (req, res) => {
             } else if (period === "This Month") {
                 return ` WHERE MONTH(${columnName}) = MONTH(CURDATE()) AND YEAR(${columnName}) = YEAR(CURDATE())`;
             }
-            return ""; // All Time
+            return ""; 
         };
 
 

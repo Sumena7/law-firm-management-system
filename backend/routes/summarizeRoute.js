@@ -25,20 +25,20 @@ router.post('/:documentId', verifyToken, allowRoles('admin', 'staff', 'lawyer'),
 
         const { file_path, case_id, file_type } = docs[0];
 
-        // 2. Normalize Windows Paths
+        //Normalize Windows Paths
         const normalizedPath = path.resolve(file_path);
         if (!fs.existsSync(normalizedPath)) {
             return res.status(404).json({ success: false, message: "File missing on disk." });
         }
 
-        // 3. Extract Text
+        // Extract Text
         const contentBuffer = fs.readFileSync(normalizedPath);
         const pdfData = await pdf(contentBuffer);
         
         // Clean white spaces and newlines
         let extractedText = pdfData.text.replace(/\s+/g, ' ').trim();
 
-        // DEBUG: Check your terminal after clicking 'AI Gist'
+        // DEBUG
         console.log("--- DEBUG: EXTRACTED TEXT START ---");
         console.log(extractedText || "NO TEXT FOUND");
         console.log("--- DEBUG: EXTRACTED TEXT END ---");
@@ -50,7 +50,7 @@ router.post('/:documentId', verifyToken, allowRoles('admin', 'staff', 'lawyer'),
             });
         }
 
-        // 4. Generate Content (Variable fixed to extractedText)
+        // Generate Content 
         const prompt = `
     तपाईं एक अनुभवी नेपाली कानूनी विशेषज्ञ हुनुहुन्छ। 
     तल दिइएको कानूनी कागजातको मुख्य कुराहरू (Gist) बुँदागत रूपमा (Bullet Points) नेपालीमा लेख्नुहोस्।
@@ -77,7 +77,7 @@ router.post('/:documentId', verifyToken, allowRoles('admin', 'staff', 'lawyer'),
         
         const summaryText = result.response.text();
 
-        // 5. Save to DB
+        // Save to DB
         await db.query(
             'INSERT INTO summaries (case_id, document_id, summary_text) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE summary_text = ?',
             [case_id, documentId, summaryText, summaryText]

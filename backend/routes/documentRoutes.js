@@ -33,9 +33,9 @@ const upload = multer({
   },
 });
 
-// ============================================================
-// 1. GENERAL ROUTES
-// ============================================================
+
+
+
 
 // GET ALL DOCUMENTS (Admin/Staff)
 router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
@@ -75,9 +75,7 @@ router.post('/', verifyToken, allowRoles('admin', 'staff', 'lawyer'), upload.arr
   }
 });
 
-// ============================================================
-// 2. SPECIFIC SUB-PATH ROUTES
-// ============================================================
+
 
 // GET DOCUMENTS BY LAWYER ID
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
@@ -123,9 +121,7 @@ router.get('/download/case/:case_id', verifyToken, allowRoles('admin', 'staff', 
   }
 });
 
-// ============================================================
-// 3. INDIVIDUAL PARAMETER ROUTES
-// ============================================================
+
 
 // DOWNLOAD SINGLE FILE
 router.get('/download/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
@@ -144,7 +140,7 @@ router.get('/download/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'),
   }
 });
 
-// PREVIEW SINGLE FILE - FIXED
+// PREVIEW SINGLE FILE 
 router.get('/preview/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), async (req, res) => {
   const { id } = req.params;
   try {
@@ -161,14 +157,12 @@ router.get('/preview/:id', verifyToken, allowRoles('admin', 'staff', 'lawyer'), 
       return res.status(404).json({ success: false, message: 'File missing on server storage' });
     }
 
-    // --- THE FIX IS HERE ---
-    // 1. Set the correct content type (e.g., application/pdf)
+    
     res.setHeader('Content-Type', file_type);
     
-    // 2. 'inline' tells the browser to try and show it, not download it
+    
     res.setHeader('Content-Disposition', 'inline');
 
-    // 3. Send the actual file data
     res.sendFile(path.resolve(file_path)); 
 
   } catch (err) {

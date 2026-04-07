@@ -15,7 +15,7 @@ router.get('/', verifyToken, allowRoles('admin', 'staff'), async (req, res) => {
     }
 });
 
-//----------- NEW: Get clients for a Specific Lawyer (Dashboard) -----------------//
+//----------- Get clients for a Specific Lawyer (Dashboard) -----------------//
 router.get('/lawyer/:userId', verifyToken, allowRoles('admin', 'lawyer'), async (req, res) => {
     const { userId } = req.params;
 
