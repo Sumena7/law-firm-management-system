@@ -7,7 +7,10 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // --- Middleware ---
-app.use(cors()); // Enable Cross-Origin Resource Sharing
+app.use(cors({
+  origin: process.env.FRONTEND_URL,
+  credentials: true,
+}));
 app.use(express.json()); // Parse incoming JSON requests
 
 // Logging middleware to track requests in the terminal
